@@ -8,3 +8,6 @@ Multiplayer party games with live rooms: Ludo, Snake & Ladder, Business Tycoon, 
 - **Test mode:** open `/?offline` to use device-only accounts and tab-to-tab rooms without a server.
 
 Run locally: `python3 -m http.server 8000` then open http://localhost:8000
+
+## Deploying
+Pushing to `main` deploys to production at https://boredoms-game.vercel.app (Vercel, no build step).

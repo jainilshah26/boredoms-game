@@ -5,24 +5,29 @@ import { avatar } from "../avatars.js";
 const GROUPS = ["#8B5A2B", "#4FC3F7", "#EC6FA5", "#FF9F43", "#E8453C", "#F2C230"];
 const T = [
   { k: "go", n: "GO", e: "🏁" }, { k: "p", n: "Jaipur", g: 0, price: 60, e: "🏰" }, { k: "chance", n: "Chance", e: "🎁" }, { k: "p", n: "Udaipur", g: 0, price: 80, e: "🛶" },
-  { k: "p", n: "Goa", g: 1, price: 100, e: "🏖️" }, { k: "rest", n: "Rest Stop", e: "☕" }, { k: "p", n: "Pune", g: 1, price: 110, e: "🌧️" }, { k: "tax", n: "Tax", amt: 100, e: "🧾" },
+  { k: "p", n: "Goa", g: 1, price: 100, e: "🏖️" }, { k: "rest", n: "Rest Stop", e: "☕" }, { k: "p", n: "Pune", g: 1, price: 110, e: "🌧️" }, { k: "tax", n: "Tax", amt: 150, e: "🧾" },
   { k: "p", n: "Kolkata", g: 2, price: 140, e: "🌉" }, { k: "p", n: "Chennai", g: 2, price: 150, e: "🌴" }, { k: "park", n: "Jackpot", e: "🎰" }, { k: "chance", n: "Chance", e: "🎁" },
   { k: "p", n: "Hyderabad", g: 3, price: 180, e: "🕌" }, { k: "p", n: "Bengaluru", g: 3, price: 200, e: "💻" }, { k: "p", n: "Delhi", g: 4, price: 240, e: "🏛️" }, { k: "wheel", n: "Lucky Wheel", e: "🎡" },
   { k: "p", n: "Mumbai", g: 4, price: 260, e: "🌆" }, { k: "chance", n: "Chance", e: "🎁" }, { k: "p", n: "Taj Mahal", g: 5, price: 300, e: "🕍" }, { k: "p", n: "Gateway", g: 5, price: 350, e: "🚪" },
 ];
-const N = T.length;
+const N = T.length, GO = 150, MAXR = 30;
 const tilePos = i => i === 0 ? [5, 5] : i <= 4 ? [5 - i, 5] : i === 5 ? [0, 5] : i <= 9 ? [0, 5 - (i - 5)] : i === 10 ? [0, 0] : i <= 14 ? [i - 10, 0] : i === 15 ? [5, 0] : [5, i - 15];
-const rentOf = (s, i) => { const t = T[i], base = Math.round(t.price * .12), o = s.owner[i]; const mates = T.map((x, j) => x.g === t.g && x.k === "p" ? j : -1).filter(j => j >= 0); return mates.every(j => s.owner[j] === o) ? base * 2 : base; };
+const rentOf = (s, i) => { const t = T[i], base = Math.round(t.price * .28), o = s.owner[i]; const mates = T.map((x, j) => x.g === t.g && x.k === "p" ? j : -1).filter(j => j >= 0); return mates.every(j => s.owner[j] === o) ? base * 2 : base; };
 const worth = (s, p) => s.cash[p] + Object.entries(s.owner).reduce((t, [i, o]) => t + (o === p ? T[i].price : 0), 0);
 const CHANCE = [["Found a lucky coin! +₹100", 100], ["Birthday gift! +₹150", 150], ["Parking ticket −₹60", -60], ["Doctor bills −₹100", -100], ["Won a quiz show! +₹120", 120], ["Chai for everyone −₹40", -40], ["Advance to GO!", "go"], ["Tax refund +₹80", 80]];
 const WHEEL = [-120, -60, 60, 120, 250, 100];
 const alive = s => s.players.map((_, i) => i).filter(i => s.alive[i]);
 
+function finish(s, ev, why) {
+  let b = 0; s.players.forEach((_, i) => { if (s.alive[i] && worth(s, i) > worth(s, b)) b = i; });
+  s.over = true; s.winner = b; s.turn = -1; s.phase = "over"; s.msg = `${why} Richest: ${s.players[b].n} (₹${worth(s, b)})`; ev.push({ t: "win", p: b, ms: 600 });
+}
 function endTurn(s, ev, again) {
   const al = alive(s);
   if (al.length === 1) { s.over = true; s.winner = al[0]; s.turn = -1; s.phase = "over"; ev.push({ t: "win", p: al[0], ms: 600 }); return; }
   if (again && s.alive[s.turn]) { s.phase = "roll"; s.dbl = (s.dbl || 0) + 1; ev.push({ t: "again", p: s.turn }); return; }
-  s.dbl = 0; let n = s.turn; do { n = (n + 1) % s.players.length; } while (!s.alive[n]); s.turn = n; s.phase = "roll";
+  s.dbl = 0; s.tc = (s.tc || 0) + 1; if (s.tc >= al.length * MAXR) return finish(s, ev, `${MAXR} rounds are up!`);
+  let n = s.turn; do { n = (n + 1) % s.players.length; } while (!s.alive[n]); s.turn = n; s.phase = "roll";
 }
 function pay(s, ev, from, to, amt, why, i) {
   const paid = Math.min(amt, Math.max(0, s.cash[from]));
@@ -45,7 +50,7 @@ function landOn(s, ev, p, dbl) {
   else if (t.k === "park") { if (s.pot > 0) { const g = s.pot; s.cash[p] += g; s.pot = 0; s.msg = `${s.players[p].n} wins the ₹${g} jackpot! 🎰`; ev.push({ t: "gain", p, amt: g, why: "jackpot", cash: [...s.cash], ms: 800 }); } else s.msg = "Jackpot is empty. Taxes feed it!"; }
   else if (t.k === "chance") {
     const [text, v] = CHANCE[Math.random() * CHANCE.length | 0]; s.msg = `${s.players[p].n}: ${text}`; ev.push({ t: "chance", p, text, ms: 1100 });
-    if (v === "go") { const path = []; for (let k = s.pos[p] + 1; k <= N; k++) path.push(k % N); s.pos[p] = 0; s.cash[p] += 200; ev.push({ t: "move", p, path, ms: path.length * 190 + 100 }); ev.push({ t: "gain", p, amt: 200, why: "go", cash: [...s.cash], ms: 600 }); }
+    if (v === "go") { const path = []; for (let k = s.pos[p] + 1; k <= N; k++) path.push(k % N); s.pos[p] = 0; s.cash[p] += GO; ev.push({ t: "move", p, path, ms: path.length * 190 + 100 }); ev.push({ t: "gain", p, amt: GO, why: "go", cash: [...s.cash], ms: 600 }); }
     else if (v > 0) { s.cash[p] += v; ev.push({ t: "gain", p, amt: v, why: "chance", cash: [...s.cash], ms: 600 }); }
     else pay(s, ev, p, null, -v, "chance", i);
   } else if (t.k === "wheel") {
@@ -64,12 +69,12 @@ export default {
       const d1 = 1 + Math.random() * 6 | 0, d2 = 1 + Math.random() * 6 | 0; s.dice = [d1, d2]; ev.push({ t: "roll", p, d: [d1, d2], ms: 1000 });
       const from = s.pos[p], steps = d1 + d2, path = []; for (let k = 1; k <= steps; k++) path.push((from + k) % N);
       s.pos[p] = path[path.length - 1]; ev.push({ t: "move", p, path, ms: path.length * 190 + 100 });
-      if (path.includes(0)) { s.cash[p] += 200; ev.push({ t: "gain", p, amt: 200, why: "go", cash: [...s.cash], ms: 600 }); }
+      if (path.includes(0)) { s.cash[p] += GO; ev.push({ t: "gain", p, amt: GO, why: "go", cash: [...s.cash], ms: 600 }); }
       landOn(s, ev, p, d1 === d2); return ev;
     }
     if (a.a === "buy" && s.phase === "buy") { const i = s.buyTile, t = T[i]; s.cash[p] -= t.price; s.owner[i] = p; s.msg = `${s.players[p].n} bought ${t.n}! 🎉`; ev.push({ t: "buy", p, i, price: t.price, cash: [...s.cash], ms: 800 }); endTurn(s, ev, s.again); return ev; }
     if (a.a === "skip" && s.phase === "buy") { s.msg = `${s.players[p].n} passed on ${T[s.buyTile].n}.`; endTurn(s, ev, s.again); return ev.length ? ev : [{ t: "noop" }]; }
-    if (a.a === "fin") { let b = 0; s.players.forEach((_, i) => { if (s.alive[i] && worth(s, i) > worth(s, b)) b = i; }); s.over = true; s.winner = b; s.turn = -1; s.phase = "over"; s.msg = `Richest player: ${s.players[b].n} (₹${worth(s, b)})`; return [{ t: "win", p: b, ms: 600 }]; }
+    if (a.a === "fin") { finish(s, ev, "Game finished!"); return ev; }
     return null;
   },
   bot(s) {
@@ -80,7 +85,7 @@ export default {
     const P = ctx.players;
     let grid = ""; for (let i = 0; i < N; i++) {
       const t = T[i], [c, r] = tilePos(i), corner = [0, 5, 10, 15].includes(i);
-      grid += `<div class="tt ${t.k}${corner ? " corner" : ""}" data-t="${i}" style="grid-column:${c + 1};grid-row:${r + 1}">${t.k === "p" ? `<i class="band" style="background:${GROUPS[t.g]}"></i>` : ""}<span class="te">${t.e}</span><b>${t.n}</b>${t.k === "p" ? `<small>₹${t.price}</small>` : t.k === "tax" ? `<small>−₹${t.amt}</small>` : t.k === "go" ? `<small>+₹200</small>` : ""}<em class="own"></em></div>`;
+      grid += `<div class="tt ${t.k}${corner ? " corner" : ""}" data-t="${i}" style="grid-column:${c + 1};grid-row:${r + 1}">${t.k === "p" ? `<i class="band" style="background:${GROUPS[t.g]}"></i>` : ""}<span class="te">${t.e}</span><b>${t.n}</b>${t.k === "p" ? `<small>₹${t.price}</small>` : t.k === "tax" ? `<small>−₹${t.amt}</small>` : t.k === "go" ? `<small>+₹150</small>` : ""}<em class="own"></em></div>`;
     }
     root.innerHTML = `<div class="game tyc">${stripHTML(P, P.map(() => "₹1000"))}
       <div class="tboardw"><div class="tgrid">${grid}<div class="tmid"><div class="pot">🎰 Jackpot <b id="pot">₹0</b></div><div class="dicebox two"></div><div class="tlog"></div></div></div><div class="tpawns"></div></div>
@@ -100,11 +105,11 @@ export default {
     const paint = s => {
       shown.pos = [...s.pos]; shown.cash = [...s.cash]; shown.owner = { ...s.owner }; shown.alive = [...s.alive];
       P.forEach((_, i) => { place(i, s.pos[i]); pw[i].classList.toggle("out", !s.alive[i]); });
-      owners(); dice.forEach((d, k) => d.set(s.dice[k], true)); $(root, "#pot").textContent = "₹" + s.pot; $(root, ".tlog").textContent = s.msg;
+      owners(); dice.forEach((d, k) => d.set(s.dice[k], true)); $(root, "#pot").textContent = "₹" + s.pot; $(root, ".tlog").textContent = s.msg + `  ·  Round ${Math.min(MAXR, Math.floor((s.tc || 0) / Math.max(1, s.alive.filter(Boolean).length)) + 1)}/${MAXR}`;
       setStrip(root, s.turn, cashInfo()); const my = ctx.mine(s.turn) && !s.over, acts = $(root, "#acts");
       if (s.over) { banner(root, `🏆 ${esc(P[s.winner].n)} wins!`, "won"); acts.innerHTML = `<button class="btn" id="again">Play again</button>`; $(root, "#again").onclick = () => ctx.act({ a: "again" }); return; }
       banner(root, my ? (s.phase === "buy" ? `Buy <b>${T[s.buyTile].n}</b> for ₹${T[s.buyTile].price}?` : "Your turn! Roll the dice.") : `${esc(P[s.turn].n)} is playing…`);
-      acts.innerHTML = my ? (s.phase === "buy" ? `<button class="btn" id="buy">Buy ₹${T[s.buyTile].price}</button><button class="btn g" id="skip">Skip</button>` : `<button class="btn" id="roll">Roll dice 🎲</button>`) + `<button class="btn g sm" id="fin">Finish game</button>` : `<button class="btn g sm" id="fin" ${ctx.mine(0) || ctx.isHost ? "" : "disabled"}>Finish game</button>`;
+      acts.innerHTML = my ? (s.phase === "buy" ? `<button class="btn" id="buy">Buy ₹${T[s.buyTile].price}</button><button class="btn g" id="skip">Skip</button>` : `<button class="btn" id="roll">Roll dice 🎲</button>`) + `<button class="btn g sm" id="fin">Finish game</button>` : `<button class="btn g sm" id="fin">Finish game</button>`;
       const b = id => $(root, id); if (b("#roll")) b("#roll").onclick = () => { b("#roll").disabled = true; ctx.act({ a: "roll" }); };
       if (b("#buy")) b("#buy").onclick = () => ctx.act({ a: "buy" }); if (b("#skip")) b("#skip").onclick = () => ctx.act({ a: "skip" });
       if (b("#fin")) b("#fin").onclick = () => { if (my) ctx.act({ a: "fin" }); else import("../fx.js").then(m => m.toast("Only the player whose turn it is can finish the game.")); };

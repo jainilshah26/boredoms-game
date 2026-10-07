@@ -106,7 +106,7 @@ export default {
       if (my && s.drawn >= 0) $(root, "#pass").onclick = () => ctx.act({ a: "pass" });
       if (s.over) { banner(root, `🏆 ${esc(P[s.winner].n)} wins!`, "won"); acts.innerHTML = `<button class="btn" id="again">Play again</button>`; $(root, "#again").onclick = () => ctx.act({ a: "again" }); }
       else banner(root, my ? (s.drawn >= 0 ? "You drew a playable card. Play it or pass." : "Your turn! Play a glowing card or draw.") : `${esc(P[s.turn].n)} is playing…`);
-      if (hot && !s.over && !P[s.turn].bot && revealed !== s.turn) { cover.hidden = false; cover.innerHTML = `<div class="cv">${avatar(P[s.turn].av, 72, P[s.turn].c)}<h2>Pass the phone to ${esc(P[s.turn].n)}</h2><p>Hide the screen from everyone else.</p><button class="btn" id="reveal">I'm ${esc(P[s.turn].n)}, show my cards</button></div>`; $(root, "#reveal").onclick = () => { revealed = s.turn; cover.hidden = true; paint(view); }; }
+      if (hot && !s.over && !P[s.turn].bot && revealed !== s.turn) { cover.hidden = false; cover.innerHTML = `<div class="cv">${avatar(P[s.turn].av, 72, P[s.turn].c)}<h2>Pass the phone to ${esc(P[s.turn].n)}</h2><p>Hide the screen from everyone else.</p><button class="btn" id="reveal">I'm ${esc(P[s.turn].n)}, show my cards</button><button class="btn g sm" id="cvbk">Leave game</button></div>`; $(root, "#cvbk").onclick = () => document.querySelector("#bk").click(); $(root, "#reveal").onclick = () => { revealed = s.turn; cover.hidden = true; paint(view); }; }
       else if (!hot || revealed === s.turn) cover.hidden = true;
     };
     deck.onclick = () => ctx.act({ a: "draw" });

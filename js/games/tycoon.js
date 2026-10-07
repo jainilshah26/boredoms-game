@@ -119,7 +119,7 @@ export default {
     const q = queue(async (s, ev) => {
       for (const e of ev) {
         if (e.t === "reset") { shown.owner = {}; shown.cash = P.map(() => 1000); shown.pos = P.map(() => 0); shown.alive = P.map(() => true); owners(); P.forEach((_, i) => place(i, 0)); showCash(); }
-        if (e.t === "roll") { banner(root, `${esc(P[e.p].n)} is rolling…`); const bt = $(root, "#roll"); if (bt) bt.disabled = true; await Promise.all(dice.map((d, k) => d.roll(e.d[k], 800 + k * 150))); }
+        if (e.t === "roll") { banner(root, `${esc(P[e.p].n)} is rolling…`); const bt = $(root, "#roll"); if (bt) bt.disabled = true; await Promise.all(dice.map((d, k) => d.roll(e.d[k], 800 + k * 150))); banner(root, `${esc(P[e.p].n)} rolled <b>${e.d[0]} + ${e.d[1]} = ${e.d[0] + e.d[1]}</b>`); }
         if (e.t === "move") { for (const n of e.path) await hop(e.p, n); }
         if (e.t === "gain") { sfx.play(e.why === "jackpot" ? "win" : "coin"); shown.cash = e.cash; showCash(); floatText(strip(e.p), `+₹${e.amt}`, "#4BE08F"); burst(pw[e.p], ["💰", "✨"], 5); if (e.why === "jackpot") $(root, "#pot").textContent = "₹0"; await sleep(560); }
         if (e.t === "pay") { sfx.play("cash"); shown.cash = e.cash; showCash(); floatText(strip(e.p), `−₹${e.amt}`, "#FF5468"); if (e.to != null) floatText(strip(e.to), `+₹${e.amt}`, "#4BE08F"); else if (e.why !== "rent") { const pot = $(root, "#pot"); pot.textContent = "₹" + (parseInt(pot.textContent.slice(1)) + e.amt); } shake(pw[e.p], 300); await sleep(600); }

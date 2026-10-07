@@ -112,7 +112,7 @@ export default {
     const q = queue(async (s, ev) => {
       for (const e of ev) {
         if (e.t === "reset") { P.forEach((_, i) => pos[i] = [-1, -1, -1, -1]); }
-        if (e.t === "roll") { banner(root, `${esc(P[e.p].n)} is rolling…`); $(root, "#roll").disabled = true; await dice.roll(e.d); }
+        if (e.t === "roll") { banner(root, `${esc(P[e.p].n)} is rolling…`); $(root, "#roll").disabled = true; await dice.roll(e.d); banner(root, `${esc(P[e.p].n)} rolled a <b>${e.d}</b>`); }
         if (e.t === "nomove") { sfx.play("err"); banner(root, `${esc(P[e.p].n)} can't move`); await sleep(650); }
         if (e.t === "triple") { sfx.play("bonk"); floatText($(root, ".dicebox"), "3 sixes! Turn lost", "#FF8A96"); await sleep(850); }
         if (e.t === "move") {

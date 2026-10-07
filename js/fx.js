@@ -59,17 +59,20 @@ const faceHTML = (n, cls) => `<div class="face ${cls}">${Array.from({ length: 9 
 export class Dice3D {
   constructor(parent, size = 64) {
     this.el = document.createElement("div"); this.el.className = "dice3d"; this.el.style.setProperty("--ds", size + "px");
-    this.el.innerHTML = `<div class="hop"><div class="cube">${[[1, "f1"], [6, "f6"], [3, "f3"], [4, "f4"], [2, "f2"], [5, "f5"]].map(([n, c]) => faceHTML(n, c)).join("")}</div></div>`;
+    this.el.innerHTML = `<div class="hop"><div class="cube">${[[1, "f1"], [6, "f6"], [3, "f3"], [4, "f4"], [2, "f2"], [5, "f5"]].map(([n, c]) => faceHTML(n, c)).join("")}</div></div><b class="dval" aria-live="polite"></b>`;
+    this.badge = this.el.querySelector(".dval"); this.shown = false;
     this.cube = this.el.querySelector(".cube"); this.hop = this.el.querySelector(".hop");
     this.set(1, true); parent.appendChild(this.el); this.v = 1; this.k = 0;
   }
+  mark(v) { this.shown = true; this.badge.textContent = v; this.badge.classList.add("on"); this.badge.setAttribute("aria-label", "Rolled " + v); }
   set(v, instant) {
-    this.v = v; if (instant) this.cube.style.transition = "none";
+    this.v = v; if (this.shown) this.mark(v); if (instant) this.cube.style.transition = "none";
     this.cube.style.transform = FACE_ROT[v] || FACE_ROT[1];
     if (instant) { void this.cube.offsetWidth; this.cube.style.transition = ""; }
   }
   async roll(v, ms = 900) {
-    if (reduced()) { this.set(v, true); return; }
+    if (reduced()) { this.set(v, true); this.mark(v); return; }
+    this.badge.classList.remove("on");
     sfx.play("dice"); buzz([20, 30, 20]);
     this.k++; const sx = 360 * (2 + (this.k % 2)), sy = 360 * 2;
     const base = FACE_ROT[v].match(/-?\d+/g).map(Number);
@@ -78,7 +81,7 @@ export class Dice3D {
     this.hop.animate([{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-46px) scale(1.25)", offset: .35 }, { transform: "translateY(0) scale(.92)", offset: .72 }, { transform: "translateY(-8px) scale(1.04)", offset: .86 }, { transform: "translateY(0) scale(1)" }], { duration: ms, easing: "ease-out" });
     await sleep(ms);
     this.cube.style.transition = "none"; this.cube.style.transform = FACE_ROT[v]; void this.cube.offsetWidth; this.cube.style.transition = "";
-    this.v = v;
+    this.v = v; this.mark(v);
   }
 }
 

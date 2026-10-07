@@ -183,6 +183,7 @@ function gameScreen(id, ctx) {
   frame(null, `<div class="top"><button class="back" id="bk" aria-label="Leave game">‹</button><h2>${g.name}</h2><button class="icon" id="hp" aria-label="How to play">?</button></div>
    <div id="stage"></div><div id="foot"></div>
    ${live() ? `<div class="reactbar" aria-label="Reactions">${["😂", "🔥", "👏", "😡", "😭", "🎉"].map(e => `<button data-e="${e}">${e}</button>`).join("")}</div>` : ""}`, false);
+  app.classList.toggle("inroom", live());
   $("#bk").onclick = confirmLeave; $("#hp").onclick = () => gameSheet(id, { help: true });
   $$("[data-e]").forEach(b => b.onclick = () => send.react(b.dataset.e, S.me.id));
   S.view = GAME[id].mount($("#stage"), ctx);

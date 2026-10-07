@@ -3,7 +3,7 @@ import { sfx, burst, shake, Dice3D, floatText, reduced } from "../fx.js";
 import { avatar } from "../avatars.js";
 
 const J = { 4: 25, 13: 46, 33: 49, 42: 63, 50: 69, 62: 81, 74: 92, 27: 5, 40: 3, 43: 18, 54: 31, 66: 45, 76: 58, 89: 53, 99: 41 };
-const cellXY = n => { if (n <= 0) return [5, 10.65]; const r = (n - 1) / 10 | 0, k = (n - 1) % 10, c = r % 2 ? 9 - k : k; return [(c + .5) * 10, (9 - r + .5) * 10]; };
+const cellXY = n => { if (n <= 0) return [6, 106.5]; const r = (n - 1) / 10 | 0, k = (n - 1) % 10, c = r % 2 ? 9 - k : k; return [(c + .5) * 10, (9 - r + .5) * 10]; };
 const HF = 1.12; // wrap height / width
 
 export default {
@@ -75,7 +75,7 @@ export default {
     const q = queue(async (s, ev) => {
       for (const e of ev) {
         if (e.t === "reset") { P.forEach((_, i) => place(i, 0)); }
-        if (e.t === "roll") { $(root, ".log").textContent = `${P[e.p].n} is rolling…`; $(root, "#roll").disabled = true; await dice.roll(e.d); }
+        if (e.t === "roll") { $(root, ".log").textContent = `${P[e.p].n} is rolling…`; $(root, "#roll").disabled = true; await dice.roll(e.d); banner(root, `${esc(P[e.p].n)} rolled a <b>${e.d}</b>`); }
         if (e.t === "stay") { sfx.play("err"); floatText(pw[e.p], `Need ${e.need}`, "#FF8A96"); await sleep(500); }
         if (e.t === "move") { for (const n of e.path) await hop(e.p, n); }
         if (e.t === "jump") {

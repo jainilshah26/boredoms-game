@@ -5,7 +5,7 @@ import { GAME } from "./games/index.js";
 
 export const PID = (() => { const r = () => Math.random().toString(36).slice(2, 10); try { let p = sessionStorage.getItem("bf_pid"); if (!p) { p = r(); sessionStorage.setItem("bf_pid", p); } return p; } catch (e) { return r(); } })();
 /* ?offline switches to a test mode: accounts live on this device and rooms work between tabs of one browser. */
-export const cloud = !!(CONFIG.url && CONFIG.key) && !/[?&]offline/.test(location.search);
+export const cloud = !!(CONFIG.url && CONFIG.key) && !(window.__BF_OFFLINE || /[?&]offline/.test(location.search));
 
 let sbp = null;
 function sbClient() {

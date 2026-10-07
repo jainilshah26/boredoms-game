@@ -52,7 +52,7 @@ function authScreen(mode = "in") {
     <label for="upw">Password</label><div class="pw"><input id="upw" type="password" autocomplete="${mode === "up" ? "new-password" : "current-password"}" placeholder="At least 6 characters"><button class="eye" type="button" id="eye">Show</button></div>
     ${mode === "up" ? `<label for="upw2">Confirm password</label><input id="upw2" type="password" autocomplete="new-password"><label>Pick your buddy</label><div id="avp">${avatarGrid(pick)}</div>` : ""}
     <div class="err" id="er" role="alert"></div><button class="btn" id="go">${mode === "up" ? "Create account" : "Log in"}</button></div>
-   <p class="foot">${cloud ? "" : "Test mode: accounts stay on this device."}</p>`;
+   <p class="foot">${cloud ? "" : "Preview mode: your account and rooms stay on this device."}</p>`;
   $$("[data-a]").forEach(b => b.onclick = () => authScreen(b.dataset.a));
   $("#eye").onclick = () => { const i = $("#upw"), sh = i.type === "password"; i.type = sh ? "text" : "password"; $("#eye").textContent = sh ? "Hide" : "Show"; };
   const bindAv = () => $$("#avp [data-av]").forEach(b => b.onclick = () => { pick = b.dataset.av; $$("#avp [data-av]").forEach(x => x.classList.toggle("on", x === b)); sfx.play("pop"); });

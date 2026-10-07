@@ -18,7 +18,8 @@ export function queue(fn) {
 
 /* A row of player avatars. The player whose turn it is bounces and glows. */
 export function stripHTML(players, info = []) {
-  return `<div class="strip">${players.map((p, i) => `<div class="pcell" data-pi="${i}" style="--pc:${p.c}">${avatar(p.av, 40, p.c)}<b>${esc(p.n)}${p.bot ? " 🤖" : ""}</b><small class="pinfo">${info[i] ?? ""}</small></div>`).join("")}</div>`;
+  const many = players.length > 6;
+  return `<div class="strip${many ? " many" : ""}">${players.map((p, i) => `<div class="pcell" data-pi="${i}" style="--pc:${p.c}">${avatar(p.av, many ? 30 : 40, p.c)}<b>${esc(p.n)}${p.bot ? " 🤖" : ""}</b><small class="pinfo">${info[i] ?? ""}</small></div>`).join("")}</div>`;
 }
 export function setStrip(root, turn, info) {
   $$(root, ".pcell").forEach((c, i) => { c.classList.toggle("turn", i === turn); if (info && info[i] != null) $(c, ".pinfo").innerHTML = info[i]; });

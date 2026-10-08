@@ -452,3 +452,10 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .linkbtn{display:block;margin:14px auto 0;background:none;border:0;color:var(--gold);font:700 14px var(--sans);letter-spacing:.06em;text-decoration:underline;text-underline-offset:4px;cursor:pointer;min-height:44px;padding:8px 12px}
 .nudge{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;margin:0 0 16px;padding:12px 16px;border-radius:14px;border:1px dashed var(--gold);background:rgba(232,199,102,.1);color:var(--ink);cursor:pointer;font-family:var(--sans)}
 .nudge b{font-family:var(--serif);color:var(--gold);font-size:18px}.nudge span{color:var(--soft);font-size:14px}
+
+/* ---------- cricket ---------- */
+.pad2.cr{gap:10px;justify-content:stretch}
+.pad2.cr button{flex:1;min-width:0;height:88px;font-size:30px;gap:2px;align-content:center}
+.pad2.cr button small{font-size:11px;letter-spacing:.14em;font-weight:700;display:block}
+.game.cricket>.pad2{max-width:560px}
+@media (max-width:370px){.pad2.cr button{height:76px;font-size:26px}.pad2.cr button small{font-size:10px;letter-spacing:.08em}}

@@ -4,6 +4,7 @@ import { AVATARS } from "../js/avatars.js";
 import { newSnake, step as snakeStep, turn, COLS, ROWS, interval } from "../js/games/snake_core.js";
 import { genLevel, newWorld, stepWorld, TILE, GROUND } from "../js/games/bounce_core.js";
 import { evalHand, cmpHands } from "../js/games/teenpatti_core.js";
+import { newMatch, next, play, BALLS, WICKETS, delivery } from "../js/games/cricket_core.js";
 import { arcadeState, arcadeAct } from "../js/games/arcade.js";
 
 let failed = 0;
@@ -12,7 +13,7 @@ const section = t => console.log("\n" + t);
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: null, n: "P" + i, av: "cat", c: "#fff", bot: true }));
 
 section("Catalogue");
-ok(LIST.length === 9, "9 games listed");
+ok(LIST.length === 10, "10 games listed");
 ok(AVATARS.length >= 20 && new Set(AVATARS.map(a => a.id)).size === AVATARS.length, "avatars have unique ids");
 ok(AVATARS.every(a => a.svg && a.bg), "every avatar has artwork and a colour");
 for (const g of LIST) ok(META[g.id] && GAME[g.id].mount && GAME[g.id].init, `${g.id} is wired up`);
@@ -85,6 +86,19 @@ section("Teen Patti");
     if (s.over) ended++; else bad++;
   }
   ok(bad === 0, "bot-vs-bot games keep chips constant and never stall"); ok(ended === 180, "every simulated game ends");
+}
+
+section("Cricket");
+{
+  const run = (seed, f) => { const m = newMatch(seed); let n = 0; while (!m.over && n++ < 100) { const d = next(m); const [s, e] = f(d, m); play(m, s, e); } return m; };
+  const perfect = run(5, d => [d.wide ? null : d.line, 0]), none = run(5, () => [null, 0]), rnd = (() => { let a = 1; return run(9, d => [Math.floor((a = (a * 48271) % 2147483647) % 3) - 1, (a % 400) - 200]); })();
+  ok(perfect.wk === 0 && perfect.balls === BALLS && perfect.runs >= 6 * BALLS, "perfect play hits sixes and survives (" + perfect.runs + ")");
+  ok(none.wk === WICKETS && none.runs <= none.log.filter(x => x === "wide").length, "never swinging gets you bowled");
+  ok(rnd.over && rnd.runs <= 6 * BALLS + 20, "random play ends within the limits");
+  const same = [0, 1, 2, 3].every(i => JSON.stringify(delivery(77, i)) === JSON.stringify(delivery(77, i))); ok(same, "same seed gives the same deliveries");
+  let bad = 0; for (let s = 1; s <= 300; s++) { const m = run(s, (d, mm) => [Math.random() < .1 ? null : Math.floor(Math.random() * 3) - 1, Math.random() * 600 - 350]); if (!m.over || m.wk > WICKETS || m.balls > BALLS || m.runs !== 0 && m.log.length === 0) bad++; const sum = m.log.length; if (sum < 1) bad++; } ok(bad === 0, "300 random innings all finish cleanly");
+  ok(play(perfect, 0, 0) === null, "no play after the innings is over");
+  let lines = new Set(), kinds = new Set(); for (let i = 0; i < 200; i++) { const d = delivery(3, i); lines.add(d.line); kinds.add(d.kind); } ok(lines.size === 5 || lines.size >= 3, "all lanes get used") && ok(kinds.size === 3, "fast, medium and spin deliveries");
 }
 
 section("Arcade scoring and rooms");

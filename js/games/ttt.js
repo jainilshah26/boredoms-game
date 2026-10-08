@@ -54,7 +54,7 @@ export default {
         if (e.t === "place") { sfx.play("pop"); cells[e.i].innerHTML = mark(e.p); cells[e.i].classList.add("filled", "pop"); shown[e.i] = e.p; await sleep(300); cells[e.i].classList.remove("pop"); }
         if (e.t === "win") { sfx.play("up"); lineIn(e.line, s, true); e.line.forEach(i => burst(cells[i], ["⭐", "✨"], 4)); await sleep(800); }
         if (e.t === "draw") { sfx.play("bonk"); shake(root.querySelector(".tboard")); await sleep(300); }
-        if (e.t === "reset") { shown = Array(9).fill(-1); }
+        if (e.t === "reset") { shown = Array(9).fill(-1); cells.forEach(c => { c.innerHTML = ""; c.classList.remove("filled", "pop", "win", "dim"); }); wl.innerHTML = ""; }
       }
       paint(s);
       if (s.over && ev.some(e => e.t === "win" || e.t === "draw")) ctx.finished(s.winner);

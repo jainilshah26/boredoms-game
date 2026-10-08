@@ -183,10 +183,11 @@ input::placeholder{color:var(--soft);opacity:.6;font-weight:600}
 
 /* ===== tic-tac-toe ===== */
 .tboard{position:relative;width:min(86vw,340px);margin:10px auto}
-.tboard .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-.tcell{aspect-ratio:1;border:1px solid var(--gold2);border-radius:18px;background:radial-gradient(circle at 30% 25%,var(--panel2),#031610);padding:12%;cursor:pointer;box-shadow:inset 0 3px 10px rgba(0,0,0,.6),0 4px 0 rgba(0,0,0,.4);transition:transform .15s,opacity .3s}
+.tboard .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:auto;gap:9px}
+.tcell{position:relative;display:block;min-width:0;min-height:0;overflow:visible;border:1px solid var(--gold2);border-radius:18px;background:radial-gradient(circle at 30% 25%,var(--panel2),#031610);padding:0;cursor:pointer;box-shadow:inset 0 3px 10px rgba(0,0,0,.6),0 4px 0 rgba(0,0,0,.4);transition:transform .15s,opacity .3s}
 .tcell:not(:disabled):not(.filled):hover{transform:translateY(-3px);border-color:var(--goldhi)}.tcell:disabled{cursor:default}
-.tcell svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}.tcell.pop{animation:cellpop .35s cubic-bezier(.2,1.6,.4,1)}
+.tcell::before{content:"";display:block;padding-top:100%}
+.tcell svg{position:absolute;left:14%;top:14%;width:72%;height:72%;overflow:visible;filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}.tcell.pop{animation:cellpop .35s cubic-bezier(.2,1.6,.4,1)}
 .tcell .m{stroke-dasharray:1;stroke-dashoffset:0;animation:drawm .35s ease-out}
 .tcell.win{animation:winpulse .7s ease-in-out infinite alternate;border-color:var(--gold)}.tcell.dim{opacity:.35}
 @keyframes drawm{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes cellpop{from{transform:scale(.6) rotate(-10deg)}}
@@ -459,3 +460,9 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .pad2.cr button small{font-size:11px;letter-spacing:.14em;font-weight:700;display:block}
 .game.cricket>.pad2{max-width:560px}
 @media (max-width:370px){.pad2.cr button{height:76px;font-size:26px}.pad2.cr button small{font-size:10px;letter-spacing:.08em}}
+
+/* tic-tac-toe: keep the board square on every browser, and don't pin Play again over the bottom row */
+.game.ttt>.actions{position:static;background:none;padding:8px 0}
+.inroom .game.ttt>.actions{bottom:auto}
+main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+main.hastabs{padding-bottom:116px}

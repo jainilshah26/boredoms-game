@@ -43,7 +43,7 @@ export default {
     };
     const showAgain = () => { $(root, ".actions").innerHTML = `<button class="btn" id="again">Play again</button>`; $(root, "#again").onclick = () => ctx.act({ a: "again" }); };
     const lineIn = (l, s, anim) => {
-      const c = i => [(i % 3) * 100 + 50, (i / 3 | 0) * 100 + 50]; const [x1, y1] = c(l[0]), [x2, y2] = c(l[2]);
+      const c = i => [(i % 3) * 102.7 + 47.3, (i / 3 | 0) * 102.7 + 47.3]; /* cell centres, allowing for the gaps */ const [x1, y1] = c(l[0]), [x2, y2] = c(l[2]);
       const dx = x2 - x1, dy = y2 - y1, k = 38 / Math.hypot(dx, dy);
       wl.innerHTML = `<line class="${anim ? "drawl" : ""}" x1="${x1 - dx * k * .5}" y1="${y1 - dy * k * .5}" x2="${x2 + dx * k * .5}" y2="${y2 + dy * k * .5}" stroke="#E8C766" stroke-width="10" stroke-linecap="round" pathLength="1"/>`;
       cells.forEach((c, i) => c.classList.add(l.includes(i) ? "win" : "dim"));

@@ -2,7 +2,7 @@
 import { esc, $, banner } from "./common.js";
 import { sfx, burst, confetti } from "../fx.js";
 
-export const lbHTML = (list, me) => `<ol class="lb">${(list || []).slice(0, 5).map((r, i) => `<li class="${r.name === me ? "me" : ""}"><span>${i + 1}</span><b>${esc(r.name)}</b><em>${r.score}</em></li>`).join("") || `<li class="empty">Be the first on the board!</li>`}</ol>`;
+export const lbHTML = (list, me) => `<ol class="lb">${(list || []).slice(0, 5).map((r, i) => `<li class="${r.name === me ? "me" : ""}"><span>${i + 1}</span><b>${esc(r.name)}</b>${r.name !== me ? `<button class="addfr" data-af="${esc(r.name)}" aria-label="Add ${esc(r.name)} as a friend">+ Friend</button>` : ""}<em>${r.score}</em></li>`).join("") || `<li class="empty">Be the first on the board!</li>`}</ol>`;
 
 export function stripInfo(S, P) { return P.map((_, i) => S.scores[i] != null ? `🏁 ${S.scores[i]}` : "playing…"); }
 

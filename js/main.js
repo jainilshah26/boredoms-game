@@ -1,12 +1,12 @@
 import { AVATARS, avatar, photoToAvatar } from "./avatars.js";
 import { sfx, setSound, store, toast, buzz, confetti, floatEmoji, burst, sleep } from "./fx.js";
-import { api, cloud, Net, PID, COLORS, hostRoom, joinRoom, leaveRoom, closeRoom, startGame, endRound, send, live } from "./net.js";
+import { api, cloud, Net, PID, COLORS, hostRoom, joinRoom, leaveRoom, closeRoom, startGame, endRound, send, live, resume } from "./net.js";
 import { GAME, LIST, META, ICON } from "./games/index.js";
 import { esc } from "./games/common.js";
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const app = $("#app");
-const S = { me: null, tab: "play", view: null, ctx: null, over: false, intro: true };
+const S = { me: null, tab: "play", view: null, ctx: null, over: false, intro: true, social: { friends: [], incoming: [], outgoing: [], invites: [] } };
 const MODES = [["Duo", 2, "2 players"], ["Trio", 3, "3 players"], ["Squad", 4, "Up to 4"], ["Party", 10, "Up to 10"]];
 const THEMES = ["felt", "velvet", "midnight"], THEME_NAMES = { felt: "Felt", velvet: "Velvet", midnight: "Midnight" };
 const setTheme = n => { document.documentElement.dataset.theme = n; store.set("bf_theme", n); };
@@ -31,11 +31,11 @@ document.addEventListener("click", e => { const b = e.target.closest("button"); 
 function frame(tab, inner, bar = true) {
   window.scrollTo(0, 0); app.className = tab ? "hastabs" : "";
   app.innerHTML = (bar ? `<header class="bar"><span class="mini"><i>♠&#xFE0E;</i><span class="gold">Boredoms Fun</span></span><span class="bar-r"><button class="icon" id="snd" aria-label="Sound ${sfx.on ? "on" : "off"}">${sfx.on ? SND_ON : SND_OFF}</button><button class="icon" id="thm" aria-label="Change table color">${TH_ICO}</button></span></header>` : "") + inner +
-    (tab ? `<div class="tabs"><nav aria-label="Main">${[["play", "♠︎", "Play"], ["me", null, "Me"]].map(([k, i, l]) => `<button class="tab ${tab === k ? "on" : ""}" data-tab="${k}"><span class="i">${i || avatar(myAv(), 26)}</span>${l}</button>`).join("")}</nav></div>` : "");
+    (tab ? `<div class="tabs"><nav aria-label="Main">${[["play", "♠︎", "Play"], ["friends", "♥︎", "Friends"], ["me", null, "Me"]].map(([k, i, l]) => `<button class="tab ${tab === k ? "on" : ""}" data-tab="${k}"><span class="i">${i || avatar(myAv(), 26)}</span>${l}${k === "friends" && badgeN() ? `<em class="badge" id="fbadge">${badgeN()}</em>` : ""}</button>`).join("")}</nav></div>` : "");
   const s = $("#snd"), t = $("#thm");
   if (s) s.onclick = () => { setSound(!sfx.on); s.innerHTML = sfx.on ? SND_ON : SND_OFF; if (sfx.on) sfx.play("pop"); };
   if (t) t.onclick = () => { setTheme(THEMES[(THEMES.indexOf(document.documentElement.dataset.theme) + 1) % THEMES.length]); toast("Table color: " + THEME_NAMES[document.documentElement.dataset.theme]); };
-  $$("[data-tab]").forEach(b => b.onclick = () => ({ play: home, me: meTab })[b.dataset.tab]());
+  $$("[data-tab]").forEach(b => b.onclick = () => ({ play: home, friends: friendsTab, me: meTab })[b.dataset.tab]());
 }
 const tile = (g, i) => `<button class="tile ${g.red ? "red" : ""}" data-g="${g.id}" style="--i:${i}" aria-label="${META[g.id].name}, ${g.pl}, ${g.time}"><span class="idx tl"><b>${g.rank}</b><i>${g.suit}︎</i></span><span class="idx br"><b>${g.rank}</b><i>${g.suit}︎</i></span><span class="face" aria-hidden="true">${ICON[g.id]}</span><span class="t-name">${META[g.id].name}</span><span class="t-meta">${g.tag}<br>${g.pl} · ${g.time}</span></button>`;
 function avatarGrid(sel, extra = "") {
@@ -64,7 +64,7 @@ function authScreen(mode = "in") {
     if (pw.length < 6) return er.textContent = "Password needs at least 6 characters.";
     if (mode === "up" && pw !== $("#upw2").value) return er.textContent = "Passwords don't match.";
     go.disabled = true; go.textContent = mode === "up" ? "Creating…" : "Logging in…"; er.textContent = "";
-    try { S.me = await (mode === "up" ? api.signUp(id, pw, pick) : api.logIn(id, pw)); S.intro = true; home(); }
+    try { S.me = await (mode === "up" ? api.signUp(id, pw, pick) : api.logIn(id, pw)); S.intro = true; home(); pollSocial(true); }
     catch (e) { er.textContent = e.message || "Couldn't connect. Check your internet and try again."; go.disabled = false; go.textContent = mode === "up" ? "Create account" : "Log in"; }
   };
   $$("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") go.click(); });
@@ -124,13 +124,14 @@ function lobby(keep) {
   const n = r.players.length, isLive = !!r.live, isHost = !isLive || Net.isHost;
   const link = location.origin + location.pathname + "#join=" + r.id;
   const mode = (MODES.find(m => m[1] === r.max) || ["Room"])[0];
-  const seatsHtml = r.players.map((p, i) => `<div class="seat" style="--i:${i}"><div class="seatav">${avatar(p.av, 62, p.c)}</div><b>${esc(p.n)}</b>${p.id === r.hostId ? ' <span class="crown">♛</span>' : ""}${isLive && p.id === PID ? "<small>you</small>" : ""}</div>`).join("") +
+  const seatsHtml = r.players.map((p, i) => `<div class="seat" style="--i:${i}"><div class="seatav">${avatar(p.av, 62, p.c)}</div><b>${esc(p.n)}</b>${p.id === r.hostId ? ' <span class="crown">♛</span>' : ""}${isLive && p.id === PID ? "<small>you</small>" : ""}${isLive && p.id !== PID ? addBtn(p.n) : ""}</div>`).join("") +
     Array.from({ length: Math.max(0, Math.min(r.max, 10) - n) }, () => `<div class="seat open">${isLive ? "Waiting…" : "Open seat"}</div>`).join("");
   frame(null, `<div class="top"><button class="back" id="lv" aria-label="Back to home">‹</button><h2>${isLive ? "Live room" : mode + " room"}</h2><span class="count">${isLive ? '<span class="live">●</span> ' : ""}${n}/${r.max}</span></div>
    ${isLive ? `<section class="ticket"><div><small>Room ID</small><div class="code">${r.id}</div></div><div><small>Password</small><div class="code">${r.pw}</div></div></section>
    <div class="row2" style="margin:16px 0 22px"><button class="btn" id="sh">Share invite</button><button class="btn g" id="cp">Copy</button></div>` : `<section class="ticket" style="grid-template-columns:1fr"><div><small>One phone</small><div class="code" style="font-size:22px">Pass it around</div></div></section><div style="height:18px"></div>`}
    <div class="table"><h2>The table</h2><div class="seats">${seatsHtml}</div>
    ${!isLive && n < r.max ? `<div class="addrow"><input id="np" maxlength="14" placeholder="Friend on this phone" aria-label="Friend's name"><button class="btn c" id="ad">Add</button></div>` : ""}</div>
+   ${isLive ? inviteCard(r) : ""}
    <h2 class="sec"><span>${isHost ? "Pick a game" : "Waiting for " + esc(r.host)}</span></h2><p class="sub" style="text-align:center;margin:8px 0 0">${isHost ? "Short on players? Bots can fill in." : "The host picks the game. Tap one to read the rules."}</p>
    <div class="tiles">${LIST.map(tile).join("")}</div>`, false);
   if (keep) $$(".seat").forEach(s => s.style.animation = "none");
@@ -142,6 +143,7 @@ function lobby(keep) {
   }
   const ad = $("#ad");
   if (ad) { const add = () => { const v = $("#np").value.trim(); if (!v) return; if (r.players.find(p => p.n.toLowerCase() === v.toLowerCase())) return toast("That name is already in the room."); const free = AVATARS.filter(a => !r.players.some(p => p.av === a.id)); r.players.push({ id: "L" + r.players.length + Math.random().toString(36).slice(2, 5), n: v, c: COLORS[r.players.length % COLORS.length], av: free[Math.random() * free.length | 0].id }); sfx.play("up"); lobby(); }; ad.onclick = add; $("#np").onkeydown = e => { if (e.key === "Enter") add(); }; }
+  bindFriendBtns(); bindInvites(r);
   $$("[data-g]").forEach(b => b.onclick = () => isHost ? gameSheet(b.dataset.g) : gameSheet(b.dataset.g, { help: true, note: `Only ${esc(r.host)} can start a game.` }));
 }
 
@@ -205,6 +207,88 @@ async function finished(winner) {
   const b = $("#back2"); if (b) b.onclick = () => quick ? (leaveRoom(), home()) : endRound();
 }
 
+
+/* ---------- friends ---------- */
+const rel = n => { const k = String(n).toLowerCase(), s = S.social; return s.friends.some(f => f.id === k) ? "friend" : s.outgoing.some(f => f.id === k) ? "sent" : s.incoming.some(f => f.id === k) ? "incoming" : "none"; };
+const badgeN = () => S.social.incoming.length + S.social.invites.length;
+/* small "+" shown next to other players' names; tap to send a friend request */
+const addBtn = n => { if (!S.me || String(n).toLowerCase() === S.me.id.toLowerCase()) return ""; const r = rel(n); return r === "friend" ? `<small class="isfr">♥ friend</small>` : r === "sent" ? `<small class="isfr">requested</small>` : `<button class="addfr" data-af="${esc(n)}" aria-label="Add ${esc(n)} as a friend">${r === "incoming" ? "Accept" : "+ Friend"}</button>`; };
+const bindFriendBtns = () => { };
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-af]"); if (!b || b.disabled) return; e.stopPropagation(); b.disabled = true; const n = b.dataset.af;
+  try {
+    const r = await api.request(n); toast(r.status === "accepted" ? `You and ${n} are now friends!` : `Friend request sent to ${n}.`); sfx.play("up");
+    b.replaceWith(Object.assign(document.createElement("small"), { className: "isfr", textContent: r.status === "accepted" ? "♥ friend" : "requested" })); pollSocial(true);
+  } catch (err) { toast(err.message); b.disabled = false; }
+});
+function inviteCard(r) {
+  const inRoom = new Set(r.players.map(p => p.n.toLowerCase())), list = S.social.friends.filter(f => !inRoom.has(f.id)).sort((a, b) => b.online - a.online).slice(0, 8);
+  if (!list.length) return `<div class="card invcard"><h2>Invite friends</h2><p class="sub" style="margin:4px 0 0">Add friends from the Friends tab, then invite them here with one tap.</p></div>`;
+  return `<div class="card invcard"><h2>Invite friends</h2><div class="frlist">${list.map(f => `<div class="fr"><span class="frav">${avatar(f.avatar, 40)}<i class="dot ${f.online ? "on" : ""}"></i></span><span class="frn"><b>${esc(f.name)}</b><small>${f.online ? "Online now" : "Offline"}</small></span><button class="btn c sm" data-inv="${f.id}">Invite</button></div>`).join("")}</div></div>`;
+}
+function bindInvites(r) {
+  $$("[data-inv]").forEach(b => b.onclick = async () => {
+    b.disabled = true; try { await api.invite(b.dataset.inv, r.id, r.pw); b.textContent = "Sent ✓"; sfx.play("pop"); } catch (e) { toast(e.message); b.disabled = false; }
+  });
+}
+async function pollSocial(force) {
+  if (!S.me || (document.hidden && !force)) return;
+  const r = await api.friends(); if (!r) return;
+  const old = S.social, oldIn = new Set(old.incoming.map(x => x.id)), oldInv = new Set(old.invites.map(x => x.id + x.room));
+  const sig = JSON.stringify(old); S.social = r;
+  r.incoming.filter(x => !oldIn.has(x.id)).forEach(x => { toast(`${x.name} wants to be your friend!`); sfx.play("pop"); });
+  r.invites.filter(x => !oldInv.has(x.id + x.room)).forEach(() => sfx.play("up"));
+  const fb = $("#fbadge"), n = badgeN(); if (fb) { fb.textContent = n; fb.hidden = !n; } else if (n && $(".tabs")) { const b = $('[data-tab="friends"]'); if (b) b.insertAdjacentHTML("beforeend", `<em class="badge" id="fbadge">${n}</em>`); }
+  if (sig !== JSON.stringify(r)) { if ($("#flists")) renderFriendLists(); if (lobbyOn()) lobby(true); }
+  showInvites();
+}
+/* a game invite from a friend: a banner on any screen except mid-game */
+function showInvites() {
+  $$(".invbar").forEach(el => { if (!S.social.invites.some(i => i.id + i.room === el.dataset.k)) el.remove(); });
+  if (S.view) return;
+  S.social.invites.slice(0, 2).forEach(i => {
+    const k = i.id + i.room; if (document.querySelector(`.invbar[data-k="${k}"]`)) return;
+    const el = document.createElement("div"); el.className = "invbar"; el.dataset.k = k; el.setAttribute("role", "alert");
+    el.innerHTML = `${avatar(i.avatar, 40)}<span><b>${esc(i.name)}</b> invited you to play</span><button class="btn c sm" data-j>Join</button><button class="x" data-x aria-label="Dismiss">✕</button>`; document.body.appendChild(el);
+    el.querySelector("[data-x]").onclick = () => { el.remove(); S.social.invites = S.social.invites.filter(x => x.id + x.room !== k); api.clearInvite(i.id); };
+    el.querySelector("[data-j]").onclick = async e => {
+      const b = e.currentTarget; b.disabled = true; b.textContent = "Joining…"; api.clearInvite(i.id); S.social.invites = S.social.invites.filter(x => x.id + x.room !== k);
+      try { leaveRoom(); await joinRoom(i.room, i.pw, { n: S.me.id, av: myAv() }); el.remove(); closeSheet(); lobby(); sfx.play("up"); }
+      catch (err) { toast(err.message); el.remove(); }
+    };
+  });
+}
+async function playWith(f) {
+  try { await hostRoom({ max: 10, live: true, me: { n: S.me.id, av: myAv() } }); } catch (e) { return toast("Couldn't open a room. Check your internet."); }
+  try { await api.invite(f.id, Net.room.id, Net.room.pw); toast(`Invite sent to ${f.name}.`); } catch (e) { toast(e.message); }
+  lobby(); sfx.play("up");
+}
+const frRow = (f, kind) => `<div class="fr"><span class="frav">${avatar(f.avatar, 44)}${kind === "friend" ? `<i class="dot ${f.online ? "on" : ""}"></i>` : ""}</span><span class="frn"><b>${esc(f.name)}</b><small>${kind === "friend" ? (f.online ? "Online now" : "Offline") : kind === "in" ? "Wants to be friends" : "Request sent"}</small></span>${
+  kind === "friend" ? `<button class="btn c sm" data-pw="${f.id}">Play</button><button class="icon sm" data-rm="${f.id}" aria-label="Remove ${esc(f.name)}">✕</button>` :
+  kind === "in" ? `<button class="btn sm" data-ac="${f.id}">Accept</button><button class="icon sm" data-dc="${f.id}" aria-label="Decline">✕</button>` : `<button class="icon sm" data-cx="${f.id}" aria-label="Cancel request">✕</button>`}</div>`;
+function renderFriendLists() {
+  const el = $("#flists"); if (!el) return; const s = S.social;
+  el.innerHTML = (s.invites.length ? `<h2 class="sec"><span>Game invites</span></h2><div class="card frlist">${s.invites.map(i => `<div class="fr"><span class="frav">${avatar(i.avatar, 44)}</span><span class="frn"><b>${esc(i.name)}</b><small>Room ${esc(i.room)}</small></span><button class="btn sm" data-jn="${i.id}">Join</button></div>`).join("")}</div>` : "") +
+    (s.incoming.length ? `<h2 class="sec"><span>Friend requests</span></h2><div class="card frlist">${s.incoming.map(f => frRow(f, "in")).join("")}</div>` : "") +
+    `<h2 class="sec"><span>My friends${s.friends.length ? " · " + s.friends.length : ""}</span></h2>` +
+    (s.friends.length ? `<div class="card frlist">${s.friends.map(f => frRow(f, "friend")).join("")}</div>` : `<div class="card"><p class="sub" style="margin:0;text-align:center">No friends yet.<br>Search a Player ID above, or tap <b>+ Friend</b> next to anyone in a room.</p></div>`) +
+    (s.outgoing.length ? `<h2 class="sec"><span>Sent requests</span></h2><div class="card frlist">${s.outgoing.map(f => frRow(f, "out")).join("")}</div>` : "");
+  el.querySelectorAll("[data-ac]").forEach(b => b.onclick = async () => { b.disabled = true; try { await api.respond(b.dataset.ac, true); toast("Friend added!"); sfx.play("up"); } catch (e) { toast(e.message); } await pollSocial(true); renderFriendLists(); });
+  el.querySelectorAll("[data-dc]").forEach(b => b.onclick = async () => { b.disabled = true; try { await api.respond(b.dataset.dc, false); } catch (e) { toast(e.message); } await pollSocial(true); renderFriendLists(); });
+  el.querySelectorAll("[data-cx]").forEach(b => b.onclick = async () => { b.disabled = true; try { await api.remove(b.dataset.cx); } catch (e) { toast(e.message); } await pollSocial(true); renderFriendLists(); });
+  el.querySelectorAll("[data-pw]").forEach(b => b.onclick = () => { b.disabled = true; playWith(s.friends.find(f => f.id === b.dataset.pw)); });
+  el.querySelectorAll("[data-jn]").forEach(b => b.onclick = async () => { const i = s.invites.find(x => x.id === b.dataset.jn); b.disabled = true; b.textContent = "Joining…"; api.clearInvite(i.id); try { await joinRoom(i.room, i.pw, { n: S.me.id, av: myAv() }); lobby(); sfx.play("up"); } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Join"; } });
+  el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const f = s.friends.find(x => x.id === b.dataset.rm); sheet(`<h2>Remove ${esc(f.name)}?</h2><p class="sub">You won't be able to invite each other until you add each other again.</p><div class="row2" style="margin-top:6px"><button class="btn g" id="no">Keep</button><button class="btn" id="yes">Remove</button></div>`); $("#no").onclick = closeSheet; $("#yes").onclick = async () => { closeSheet(); try { await api.remove(f.id); } catch (e) { toast(e.message); } await pollSocial(true); renderFriendLists(); }; });
+}
+function friendsTab() {
+  leaveRoom(); S.tab = "friends"; S.view = null;
+  frame("friends", `<section class="hero"><div class="herov">${avatar(myAv(), 84)}</div><div><p class="kick">Your ID</p><h1>${esc(S.me.id)}</h1><p class="sub" style="margin:2px 0 0">Share it so friends can find you.</p></div></section>
+   <div class="card"><label for="fq" style="margin-top:0">Find a player</label><input id="fq" maxlength="14" autocapitalize="none" autocomplete="off" placeholder="Type a Player ID"><div id="fr" class="frlist"></div></div>
+   <div id="flists"></div>`);
+  renderFriendLists(); pollSocial(true);
+  let tm = 0, seq = 0; $("#fq").oninput = e => { clearTimeout(tm); const q = e.target.value.trim(), my = ++seq; if (q.length < 2) { $("#fr").innerHTML = ""; return; } tm = setTimeout(async () => { const res = await api.find(q); if (my !== seq || !$("#fr")) return; const word = { friend: "♥ friend", sent: "requested", incoming: "" }; $("#fr").innerHTML = res.length ? res.map(f => `<div class="fr"><span class="frav">${avatar(f.avatar, 40)}</span><span class="frn"><b>${esc(f.name)}</b></span>${f.rel === "none" || f.rel === "incoming" ? `<button class="btn c sm" data-af="${f.id}">${f.rel === "incoming" ? "Accept" : "+ Friend"}</button>` : `<small class="isfr">${word[f.rel]}</small>`}</div>`).join("") : `<p class="sub" style="margin:10px 0 0">No player found with that ID.</p>`; bindFriendBtns($("#fr")); }, 250); };
+}
+
 /* ---------- me ---------- */
 function meTab() {
   leaveRoom(); S.tab = "me"; const st = S.me;
@@ -219,15 +303,18 @@ function meTab() {
   $("#upl").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { setAv(await photoToAvatar(f)); } catch (err) { toast(err.message); } };
   $("#s2").onclick = () => { setSound(!sfx.on); meTab(); };
   $$("[data-th]").forEach(b => b.onclick = () => { setTheme(b.dataset.th); meTab(); });
-  $("#so").onclick = () => { api.logOut(); authScreen("in"); };
+  $("#so").onclick = () => { api.logOut(); S.social = { friends: [], incoming: [], outgoing: [], invites: [] }; $$(".invbar").forEach(x => x.remove()); authScreen("in"); };
 }
 
 /* ---------- boot ---------- */
 (async function boot() {
   app.innerHTML = LOGO + `<p class="tag">Loading…</p>`;
   const join = (location.hash.match(/join=([A-Za-z0-9]{6})/) || [])[1];
+  setInterval(() => pollSocial(), 8000);
   S.me = await api.me();
   if (!S.me) return authScreen("in");
+  pollSocial(true);
   home(join ? join.toUpperCase() : undefined);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollSocial(true); resume(); } });
 })();
 window.__bf = { S, Net, api, startGame };

@@ -23,6 +23,9 @@ async function sha(s) { const d = await crypto.subtle.digest("SHA-256", new Text
 /* ---------- accounts ---------- */
 const rpc = async (fn, args) => { const { data, error } = await (await sbClient()).rpc(fn, args); if (error) throw new Error(error.message || "Something went wrong."); return data; };
 const LU = () => store.get("bf_users", {});
+const SO = () => store.get("bf_social", { f: [], inv: [], seen: {} }), saveSO = o => store.set("bf_social", o);
+const prof = k => { const r = LU()[k]; return r ? { id: k, name: r.id, avatar: r.avatar } : null; };
+const relOf = (o, me, k) => o.f.some(x => !x.gone && x.status === "accepted" && ((x.a === me && x.b === k) || (x.a === k && x.b === me))) ? "friend" : o.f.some(x => !x.gone && x.a === me && x.b === k) ? "sent" : o.f.some(x => !x.gone && x.a === k && x.b === me) ? "incoming" : "none";
 export const api = {
   token: store.get("bf_token"),
   async signUp(id, pw, av) {
@@ -53,6 +56,58 @@ export const api = {
     } catch (e) { }
   },
   logOut() { this.token = null; store.set("bf_token", null); },
+  /* friends: requests, a friend list with online dots, and room invites */
+  async friends() {
+    try {
+      if (cloud) return await rpc("bf_friends", { p_token: this.token });
+      const me = this.token, o = SO(); o.seen[me] = Date.now(); saveSO(o);
+      const fs = o.f.filter(x => !x.gone), P = k => prof(k), ok = x => x && x.id;
+      return {
+        friends: fs.filter(x => x.status === "accepted" && (x.a === me || x.b === me)).map(x => { const k = x.a === me ? x.b : x.a, r = P(k); return r && { ...r, online: Date.now() - (o.seen[k] || 0) < 40000 }; }).filter(ok),
+        incoming: fs.filter(x => x.b === me && x.status === "pending").map(x => P(x.a)).filter(ok),
+        outgoing: fs.filter(x => x.a === me && x.status === "pending").map(x => P(x.b)).filter(ok),
+        invites: o.inv.filter(x => !x.gone && x.to === me && Date.now() - x.t < 9e5).map(x => { const r = P(x.from); return r && { ...r, room: x.room, pw: x.pw }; }).filter(ok),
+      };
+    } catch (e) { return null; }
+  },
+  async find(q) {
+    try {
+      if (cloud) return (await rpc("bf_find", { p_token: this.token, p_q: q })) || [];
+      const me = this.token, o = SO(), s = q.trim().toLowerCase(); if (s.length < 2) return [];
+      return Object.keys(LU()).filter(k => k !== me && k.startsWith(s)).sort().slice(0, 8).map(k => ({ ...prof(k), rel: relOf(o, me, k) }));
+    } catch (e) { return []; }
+  },
+  async request(id) {
+    if (cloud) return rpc("bf_friend_request", { p_token: this.token, p_to: id });
+    const me = this.token, k = id.trim().toLowerCase(), o = SO(); if (k === me) throw new Error("That is you!"); if (!LU()[k]) throw new Error("No player with that ID.");
+    const r = relOf(o, me, k); if (r === "friend") throw new Error("You are already friends."); if (r === "sent") throw new Error("Request already sent.");
+    const rev = o.f.find(x => !x.gone && x.a === k && x.b === me && x.status === "pending");
+    if (rev) { rev.status = "accepted"; saveSO(o); return { status: "accepted" }; }
+    const old = o.f.find(x => x.a === me && x.b === k); if (old) { old.gone = false; old.status = "pending"; } else o.f.push({ a: me, b: k, status: "pending", gone: false });
+    saveSO(o); return { status: "pending" };
+  },
+  async respond(id, accept) {
+    if (cloud) return rpc("bf_friend_respond", { p_token: this.token, p_from: id, p_accept: !!accept });
+    const o = SO(), x = o.f.find(f => !f.gone && f.a === id.toLowerCase() && f.b === this.token && f.status === "pending"); if (x) { if (accept) x.status = "accepted"; else x.gone = true; saveSO(o); }
+    return { ok: true };
+  },
+  async remove(id) {
+    if (cloud) return rpc("bf_friend_remove", { p_token: this.token, p_other: id });
+    const me = this.token, k = id.toLowerCase(), o = SO();
+    o.f.forEach(x => { if ((x.a === me && x.b === k) || (x.a === k && x.b === me)) x.gone = true; }); o.inv.forEach(x => { if ((x.from === me && x.to === k) || (x.from === k && x.to === me)) x.gone = true; }); saveSO(o); return { ok: true };
+  },
+  async invite(id, room, pw) {
+    if (cloud) return rpc("bf_invite", { p_token: this.token, p_to: id, p_room: room, p_pw: pw });
+    const me = this.token, k = id.toLowerCase(), o = SO(); if (relOf(o, me, k) !== "friend") throw new Error("You can only invite friends.");
+    const old = o.inv.find(x => x.from === me && x.to === k); if (old) Object.assign(old, { room, pw, t: Date.now(), gone: false }); else o.inv.push({ from: me, to: k, room, pw, t: Date.now(), gone: false });
+    saveSO(o); return { ok: true };
+  },
+  async clearInvite(id) {
+    try {
+      if (cloud) return await rpc("bf_invite_clear", { p_token: this.token, p_from: id });
+      const o = SO(); o.inv.forEach(x => { if (x.to === this.token && x.from === id.toLowerCase()) x.gone = true; }); saveSO(o);
+    } catch (e) { }
+  },
   /* arcade high scores: global when online, on this device in test mode */
   async submitScore(game, score) {
     try {
@@ -71,7 +126,7 @@ export const api = {
 };
 
 /* ---------- realtime bus ---------- */
-async function makeBus(name, onmsg, ondrop) {
+async function makeBus(name, onmsg, ondrop, onback) {
   if (cloud) {
     const c = await sbClient();
     return new Promise((res, rej) => {
@@ -80,6 +135,7 @@ async function makeBus(name, onmsg, ondrop) {
         if (st === "SUBSCRIBED" && !ok) { ok = true; res({ send: m => ch.send({ type: "broadcast", event: "m", payload: m }), close: () => c.removeChannel(ch) }); }
         else if (!ok && (st === "CHANNEL_ERROR" || st === "TIMED_OUT" || st === "CLOSED")) rej(new Error(st));
         else if (ok && (st === "CHANNEL_ERROR" || st === "TIMED_OUT")) ondrop && ondrop();
+        else if (ok && st === "SUBSCRIBED") onback && onback();
       });
       setTimeout(() => { if (!ok) rej(new Error("timeout")); }, 9000);
     });
@@ -93,15 +149,25 @@ export const COLORS = ["#E8453C", "#2E7BE8", "#F2B632", "#26B574", "#9B59D8", "#
 export const rid = () => Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.random() * 32 | 0]).join("");
 export const Net = {
   room: null, bus: null, isHost: false, timers: [], gen: 0, hostSeen: 0, seen: {}, pending: null,
-  runner: null, lastSeq: -1,
+  runner: null, lastSeq: -1, dropTimer: null, me: null, acts: new Set(), pend: new Map(), aid: 0,
   cb: { roster() { }, start() { }, state() { }, react() { }, closed() { }, toLobby() { } },
 };
 const chanName = async (id, pw) => "bf-" + id + "-" + (await sha(id + pw)).slice(0, 12);
 const L = () => Net.cb;
 export const live = () => !!(Net.room && Net.room.live);
 
+/* keep the screen awake in a live room so the phone doesn't sleep while we wait for other players */
+let wl = null;
+async function wake(on) {
+  try {
+    if (!on) { if (wl) { const w = wl; wl = null; await w.release(); } return; }
+    if (!wl && navigator.wakeLock && !document.hidden) { wl = await navigator.wakeLock.request("screen"); wl.addEventListener && wl.addEventListener("release", () => { wl = null; }); }
+  } catch (e) { wl = null; }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { if (Net.room && Net.room.live) { wake(true); resume(); } } });
+
 export function closeRoom(late) {
-  Net.gen++; Net.timers.forEach(clearInterval); Net.timers = [];
+  Net.gen++; Net.timers.forEach(clearInterval); Net.timers = []; clearTimeout(Net.dropTimer); Net.dropTimer = null; Net.pend.forEach(p => clearTimeout(p.t)); Net.pend.clear(); Net.acts.clear(); wake(false);
   if (Net.runner) Net.runner.stop(); Net.runner = null;
   const b = Net.bus; Net.bus = null; if (b) setTimeout(() => { try { b.close(); } catch (e) { } }, late ? 400 : 0);
   Net.room = null; Net.isHost = false; Net.pending = null; Net.seen = {}; Net.lastSeq = -1;
@@ -118,12 +184,14 @@ const sendRoster = () => { if (Net.room && Net.bus) Net.bus.send(rosterMsg()); }
 export async function hostRoom({ max, live: isLive, me }) {
   closeRoom(); const gen = Net.gen;
   const room = { id: rid(), pw: String(1000 + Math.random() * 9000 | 0), max, live: isLive, host: me.n, hostId: PID, players: [{ id: PID, n: me.n, av: me.av, c: COLORS[0] }] };
+  Net.me = me;
   if (isLive) {
-    Net.bus = await makeBus(await chanName(room.id, room.pw), m => { if (gen === Net.gen) handle(m); }, drop);
+    wake(true);
+    Net.bus = await makeBus(await chanName(room.id, room.pw), m => { if (gen === Net.gen) handle(m); }, drop, back);
     Net.room = room; Net.isHost = true;
     Net.timers.push(setInterval(() => {
       sendRoster(); const now = Date.now();
-      room.players.slice().forEach(p => { if (p.id !== PID && now - (Net.seen[p.id] || now) > 15000) removePlayer(p.id, "lost connection"); });
+      room.players.slice().forEach(p => { if (p.id !== PID && now - (Net.seen[p.id] || now) > 40000) removePlayer(p.id, "lost connection"); });
       if (Net.runner) Net.runner.resync();
     }, 3000));
     sendRoster();
@@ -131,8 +199,8 @@ export async function hostRoom({ max, live: isLive, me }) {
   return room;
 }
 export async function joinRoom(id, pw, me) {
-  closeRoom(); const gen = Net.gen;
-  try { Net.bus = await makeBus(await chanName(id, pw), m => { if (gen === Net.gen) handle(m); }, drop); }
+  closeRoom(); const gen = Net.gen; Net.me = me; wake(true);
+  try { Net.bus = await makeBus(await chanName(id, pw), m => { if (gen === Net.gen) handle(m); }, drop, back); }
   catch (e) { throw new Error("Couldn't connect. Check your internet and try again."); }
   return new Promise((res, rej) => {
     let tries = 0; const hello = () => Net.bus && Net.bus.send({ t: "hello", from: PID, n: me.n, av: me.av });
@@ -143,7 +211,18 @@ export async function joinRoom(id, pw, me) {
     }, 1100); hello();
   });
 }
-function drop() { if (!Net.bus) return; closeRoom(); toast("Connection lost."); L().closed("Connection lost."); }
+/* A dropped connection gets a few seconds to come back on its own before the room is given up. */
+function drop() {
+  if (!Net.bus || Net.dropTimer) return; toast("Reconnecting…"); const gen = Net.gen;
+  Net.dropTimer = setTimeout(() => { Net.dropTimer = null; if (gen === Net.gen && Net.bus) { closeRoom(); toast("Connection lost."); L().closed("Connection lost."); } }, 12000);
+}
+function back() {
+  if (Net.dropTimer) { clearTimeout(Net.dropTimer); Net.dropTimer = null; toast("Back online"); }
+  if (!Net.bus || !Net.room) return;
+  if (Net.isHost) { sendRoster(); Net.runner && Net.runner.resync(); } else Net.bus.send({ t: "sync", from: PID });
+}
+/* Called when the app comes back to the front: ask the host for the latest table right away. */
+export function resume() { if (!Net.bus || !Net.room) return; Net.hostSeen = Date.now(); if (Net.isHost) { sendRoster(); Net.runner && Net.runner.resync(); } else Net.bus.send({ t: "sync", from: PID }); }
 
 function removePlayer(id, why) {
   const r = Net.room; const p = r.players.find(x => x.id === id); if (!p) return;
@@ -158,10 +237,16 @@ function handle(m) {
   switch (m.t) {
     case "hello": if (Net.isHost && m.from !== PID) hostAdd(m); break;
     case "roster": onRoster(m); break;
-    case "denied": if (m.to === PID && Net.pending) { const p = Net.pending; Net.pending = null; clearInterval(p.timer); closeRoom(); p.rej(new Error(m.why)); } break;
+    case "denied": if (m.to === PID && !Net.pending && !Net.isHost) { closeRoom(); toast(m.why); L().closed(m.why); } else if (m.to === PID && Net.pending) { const p = Net.pending; Net.pending = null; clearInterval(p.timer); closeRoom(); p.rej(new Error(m.why)); } break;
     case "start": if (fromHost) { Net.lastSeq = m.seq; L().start(m); } break;
     case "state": if (fromHost && m.seq > Net.lastSeq) { Net.lastSeq = m.seq; L().state(m); } break;
-    case "act": if (Net.isHost && Net.runner) { const i = Net.runner.players.findIndex(p => p.id === m.from); if (i >= 0) Net.runner.act(i, m.a); } break;
+    case "act": if (Net.isHost && Net.runner) {
+      const key = m.from + m.aid; if (m.aid && Net.acts.has(key)) { Net.bus.send({ t: "ack", to: m.from, aid: m.aid, from: PID }); break; }
+      if (m.aid) { Net.acts.add(key); if (Net.acts.size > 400) Net.acts.delete(Net.acts.values().next().value); Net.bus.send({ t: "ack", to: m.from, aid: m.aid, from: PID }); }
+      const i = Net.runner.players.findIndex(p => p.id === m.from); if (i >= 0) Net.runner.act(i, m.a);
+    } break;
+    case "ack": if (m.to === PID && Net.pend.has(m.aid)) { clearTimeout(Net.pend.get(m.aid).t); Net.pend.delete(m.aid); } break;
+    case "sync": if (Net.isHost && m.from !== PID) { sendRoster(); Net.runner && Net.runner.resync(); } break;
     case "toLobby": if (fromHost) { if (Net.runner) { Net.runner.stop(); Net.runner = null; } Net.lastSeq = -1; L().toLobby(m.why); } break;
     case "leave": if (Net.isHost) removePlayer(m.from, "left"); break;
     case "closed": if (!Net.isHost && fromHost) { closeRoom(); toast("The host closed the room."); L().closed("The host closed the room."); } break;
@@ -184,12 +269,16 @@ function onRoster(m) {
     if (!m.room.players.some(p => p.id === PID)) return;
     const p = Net.pending; Net.pending = null; clearInterval(p.timer);
     Net.room = { ...m.room, pw: p.pw, live: true }; Net.hostSeen = Date.now();
-    Net.timers.push(setInterval(() => { if (!Net.bus) return; Net.bus.send({ t: "hb", from: PID }); if (Net.room && Date.now() - Net.hostSeen > 15000) { closeRoom(); toast("Lost connection to the host."); L().closed("Lost connection to the host."); } }, 4000));
+    Net.timers.push(setInterval(() => { if (!Net.bus) return; Net.bus.send({ t: "hb", from: PID }); if (Net.room && Date.now() - Net.hostSeen > 40000) { closeRoom(); toast("Lost connection to the host."); L().closed("Lost connection to the host."); } }, 4000));
     p.res(Net.room); return;
   }
   const r = Net.room; if (!r || Net.isHost || m.from !== r.hostId) return;
-  if (!m.room.players.some(p => p.id === PID)) { closeRoom(); toast("You were removed from the room."); L().closed("You were removed from the room."); return; }
-  r.players = m.room.players; r.max = m.room.max; r.inGame = m.room.inGame; L().roster();
+  if (!m.room.players.some(p => p.id === PID)) {
+    if (!m.room.inGame && Net.me && Net.bus && (Net.rejoin = (Net.rejoin || 0) + 1) <= 5) { Net.bus.send({ t: "hello", from: PID, n: Net.me.n, av: Net.me.av }); return; }
+    closeRoom(); toast("You were removed from the room."); L().closed("You were removed from the room."); return;
+  }
+  Net.rejoin = 0;
+  const sig = JSON.stringify([r.players, r.max, r.inGame]); r.players = m.room.players; r.max = m.room.max; r.inGame = m.room.inGame; if (sig !== JSON.stringify([r.players, r.max, r.inGame])) L().roster();
 }
 
 /* ---------- messages the UI sends ---------- */
@@ -198,7 +287,10 @@ export const send = {
   act(a, p) { // p is the seat index (used on one phone); online the host works out the seat from who sent it
     if (!live()) { Net.runner && Net.runner.act(p, a); return; }
     if (Net.isHost && Net.runner) { const i = Net.runner.players.findIndex(x => x.id === PID); Net.runner.act(p != null ? p : i, a); return; }
-    Net.bus && Net.bus.send({ t: "act", from: PID, a });
+    if (!Net.bus) return;
+    const aid = ++Net.aid + "." + PID.slice(0, 3), msg = { t: "act", from: PID, a, aid }; let tries = 0;
+    const go = () => { if (!Net.bus) return Net.pend.delete(aid); Net.bus.send(msg); if (++tries < 5) Net.pend.set(aid, { t: setTimeout(go, 1200) }); else Net.pend.delete(aid); };
+    go();
   },
 };
 

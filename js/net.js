@@ -23,6 +23,7 @@ async function sha(s) { const d = await crypto.subtle.digest("SHA-256", new Text
 /* ---------- accounts ---------- */
 const rpc = async (fn, args) => { const { data, error } = await (await sbClient()).rpc(fn, args); if (error) throw new Error(error.message || "Something went wrong."); return data; };
 const LU = () => store.get("bf_users", {});
+const recCode = () => { const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", b = crypto.getRandomValues(new Uint8Array(12)); const s = Array.from(b, x => A[x % 32]).join(""); return s.slice(0, 4) + "-" + s.slice(4, 8) + "-" + s.slice(8); };
 const SO = () => store.get("bf_social", { f: [], inv: [], seen: {} }), saveSO = o => store.set("bf_social", o);
 const prof = k => { const r = LU()[k]; return r ? { id: k, name: r.id, avatar: r.avatar } : null; };
 const relOf = (o, me, k) => o.f.some(x => !x.gone && x.status === "accepted" && ((x.a === me && x.b === k) || (x.a === k && x.b === me))) ? "friend" : o.f.some(x => !x.gone && x.a === me && x.b === k) ? "sent" : o.f.some(x => !x.gone && x.a === k && x.b === me) ? "incoming" : "none";
@@ -54,6 +55,29 @@ export const api = {
       if (cloud) return await rpc("bf_record", { p_token: this.token, p_won: !!won });
       const u = LU(), r = u[this.token]; if (r) { r.played++; if (won) r.wins++; store.set("bf_users", u); return { id: r.id, avatar: r.avatar, played: r.played, wins: r.wins }; }
     } catch (e) { }
+  },
+  /* account recovery: a one-time recovery code, shown to the player and stored only as a hash */
+  async makeRecovery() {
+    if (cloud) return (await rpc("bf_make_recovery", { p_token: this.token })).code;
+    const c = recCode(), u = LU(), r = u[this.token]; r.rh = await sha(this.token + c.replace(/-/g, "")); store.set("bf_users", u); return c;
+  },
+  async hasRecovery() {
+    try { if (cloud) return !!(await rpc("bf_has_recovery", { p_token: this.token })); const r = LU()[this.token]; return !!(r && r.rh); } catch (e) { return true; }
+  },
+  async resetPassword(id, code, pw) {
+    if (cloud) {
+      const r = await rpc("bf_reset_password", { p_id: id, p_code: code, p_pw: pw }); if (!r || !r.ok) throw new Error((r && r.error) || "Something went wrong.");
+      this.token = r.token; store.set("bf_token", r.token); return { profile: r.profile, code: r.code };
+    }
+    const k = id.trim().toLowerCase(), u = LU(), r = u[k], bad = new Error("That Player ID and recovery code don't match.");
+    if (pw.length < 6) throw new Error("Password needs at least 6 characters."); if (!r || !r.rh || r.rh !== await sha(k + code.toUpperCase().replace(/[^A-Z0-9]/g, ""))) throw bad;
+    const nc = recCode(); r.h = await sha(k + pw); r.rh = await sha(k + nc.replace(/-/g, "")); store.set("bf_users", u); this.token = k; store.set("bf_token", k);
+    return { profile: { id: r.id, avatar: r.avatar, played: r.played, wins: r.wins }, code: nc };
+  },
+  async changePassword(oldPw, newPw) {
+    if (cloud) return rpc("bf_change_password", { p_token: this.token, p_old: oldPw, p_new: newPw });
+    const u = LU(), r = u[this.token]; if (newPw.length < 6) throw new Error("Password needs at least 6 characters."); if (!r || r.h !== await sha(this.token + oldPw)) throw new Error("Current password is wrong.");
+    r.h = await sha(this.token + newPw); store.set("bf_users", u); return { ok: true };
   },
   /* anonymous visit counter: a random id kept on this device, no IP or personal data. Skipped in test mode and when Do Not Track is on. */
   async hit() {

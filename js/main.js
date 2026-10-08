@@ -51,20 +51,20 @@ function authScreen(mode = "in") {
     <label for="uid">Player ID</label><input id="uid" maxlength="14" autocomplete="username" autocapitalize="none" placeholder="e.g. jainil_07">
     <label for="upw">Password</label><div class="pw"><input id="upw" type="password" autocomplete="${mode === "up" ? "new-password" : "current-password"}" placeholder="At least 6 characters"><button class="eye" type="button" id="eye">Show</button></div>
     ${mode === "up" ? `<label for="upw2">Confirm password</label><input id="upw2" type="password" autocomplete="new-password"><label>Pick your buddy</label><div id="avp">${avatarGrid(pick)}</div>` : ""}
-    <div class="err" id="er" role="alert"></div><button class="btn" id="go">${mode === "up" ? "Create account" : "Log in"}</button></div>
+    <div class="err" id="er" role="alert"></div><button class="btn" id="go">${mode === "up" ? "Create account" : "Log in"}</button>${mode === "in" ? `<button class="linkbtn" id="fp" type="button">Forgot password?</button>` : ""}</div>
    <p class="foot">${cloud ? "" : "Preview mode: your account and rooms stay on this device."}</p>`;
   $$("[data-a]").forEach(b => b.onclick = () => authScreen(b.dataset.a));
   $("#eye").onclick = () => { const i = $("#upw"), sh = i.type === "password"; i.type = sh ? "text" : "password"; $("#eye").textContent = sh ? "Hide" : "Show"; };
   const bindAv = () => $$("#avp [data-av]").forEach(b => b.onclick = () => { pick = b.dataset.av; $$("#avp [data-av]").forEach(x => x.classList.toggle("on", x === b)); sfx.play("pop"); });
   if (mode === "up") bindAv();
-  const go = $("#go"), er = $("#er");
+  const go = $("#go"), er = $("#er"); if ($("#fp")) $("#fp").onclick = () => resetScreen($("#uid").value.trim());
   go.onclick = async () => {
     const id = $("#uid").value.trim(), pw = $("#upw").value;
     if (!/^[A-Za-z0-9_]{3,14}$/.test(id)) return er.textContent = "Player ID: 3–14 letters, numbers or _.";
     if (pw.length < 6) return er.textContent = "Password needs at least 6 characters.";
     if (mode === "up" && pw !== $("#upw2").value) return er.textContent = "Passwords don't match.";
     go.disabled = true; go.textContent = mode === "up" ? "Creating…" : "Logging in…"; er.textContent = "";
-    try { S.me = await (mode === "up" ? api.signUp(id, pw, pick) : api.logIn(id, pw)); S.intro = true; home(); pollSocial(true); }
+    try { S.me = await (mode === "up" ? api.signUp(id, pw, pick) : api.logIn(id, pw)); S.intro = true; if (mode === "up") { let c = null; try { c = await api.makeRecovery(); } catch (e) { } S.noRec = false; if (c) return codeScreen(c, "Save your recovery code", () => { home(); pollSocial(true); }); } home(); pollSocial(true); checkRec(); }
     catch (e) { er.textContent = e.message || "Couldn't connect. Check your internet and try again."; go.disabled = false; go.textContent = mode === "up" ? "Create account" : "Log in"; }
   };
   $$("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") go.click(); });
@@ -77,7 +77,7 @@ function home(prefill) {
    <div class="row2"><button class="btn" id="mk">Create room</button><button class="btn c" id="jn">Join room</button></div>
    <h2 class="sec"><span>Quick play</span></h2><p class="sub" style="text-align:center;margin:8px 0 0">Solo against bots. No room needed.</p>
    <div class="tiles ${S.intro ? "intro" : ""}">${LIST.map(tile).join("")}</div>`);
-  S.intro = false; $("#mk").onclick = createSheet; $("#jn").onclick = () => joinSheet();
+  S.intro = false; nudge(); $("#mk").onclick = createSheet; $("#jn").onclick = () => joinSheet();
   $$("[data-g]").forEach(b => b.onclick = () => quickStart(b.dataset.g));
   if (prefill) joinSheet(prefill);
 }
@@ -289,6 +289,52 @@ function friendsTab() {
   let tm = 0, seq = 0; $("#fq").oninput = e => { clearTimeout(tm); const q = e.target.value.trim(), my = ++seq; if (q.length < 2) { $("#fr").innerHTML = ""; return; } tm = setTimeout(async () => { const res = await api.find(q); if (my !== seq || !$("#fr")) return; const word = { friend: "♥ friend", sent: "requested", incoming: "" }; $("#fr").innerHTML = res.length ? res.map(f => `<div class="fr"><span class="frav">${avatar(f.avatar, 40)}</span><span class="frn"><b>${esc(f.name)}</b></span>${f.rel === "none" || f.rel === "incoming" ? `<button class="btn c sm" data-af="${f.id}">${f.rel === "incoming" ? "Accept" : "+ Friend"}</button>` : `<small class="isfr">${word[f.rel]}</small>`}</div>`).join("") : `<p class="sub" style="margin:10px 0 0">No player found with that ID.</p>`; bindFriendBtns($("#fr")); }, 250); };
 }
 
+
+/* ---------- recovery code & password reset ---------- */
+function codeScreen(code, title, then) {
+  closeRoom(); app.className = ""; window.scrollTo(0, 0);
+  app.innerHTML = LOGO + `<div class="card"><h2>${title}</h2><p class="sub">If you ever forget your password, this code is the <b>only</b> way back into your account, with all your wins and friends. Screenshot it or write it down somewhere safe.</p>
+   <section class="ticket" style="grid-template-columns:1fr;margin-top:14px"><div><small>Your recovery code</small><div class="code" style="font-size:clamp(22px,7vw,32px);letter-spacing:.08em">${code}</div></div></section>
+   <div class="row2" style="margin-top:16px"><button class="btn g" id="cpc">Copy</button><button class="btn" id="dn">I saved it</button></div></div>`;
+  $("#cpc").onclick = async () => { try { await navigator.clipboard.writeText(code); toast("Code copied."); } catch (e) { toast("Copy didn't work. Please write it down."); } };
+  $("#dn").onclick = then;
+}
+function resetScreen(prefill = "") {
+  closeRoom(); S.me = null; app.className = ""; window.scrollTo(0, 0);
+  app.innerHTML = LOGO + `<p class="tag">Forgot your password? Use your recovery code to set a new one and keep your account.</p>
+   <div class="card"><label for="uid">Player ID</label><input id="uid" maxlength="14" autocapitalize="none" value="${esc(prefill)}">
+    <label for="rc">Recovery code</label><input id="rc" maxlength="14" autocapitalize="characters" autocomplete="off" placeholder="XXXX-XXXX-XXXX" style="text-transform:uppercase;letter-spacing:2px">
+    <label for="npw">New password</label><div class="pw"><input id="npw" type="password" autocomplete="new-password" placeholder="At least 6 characters"><button class="eye" type="button" id="eye">Show</button></div>
+    <div class="err" id="er" role="alert"></div><button class="btn" id="go">Set new password</button><button class="linkbtn" id="bk" type="button">Back to log in</button>
+    <p class="sub" style="margin:14px 0 0;font-size:14px">No recovery code? Accounts made before this feature can't be reset, because we never stored your password. You can make a new account.</p></div>`;
+  $("#eye").onclick = () => { const i = $("#npw"), sh = i.type === "password"; i.type = sh ? "text" : "password"; $("#eye").textContent = sh ? "Hide" : "Show"; };
+  $("#bk").onclick = () => authScreen("in");
+  const go = $("#go"), er = $("#er");
+  go.onclick = async () => {
+    const id = $("#uid").value.trim(), code = $("#rc").value.trim(), pw = $("#npw").value;
+    if (!id || code.replace(/[^A-Za-z0-9]/g, "").length !== 12) return er.textContent = "Enter your Player ID and the 12-character recovery code.";
+    if (pw.length < 6) return er.textContent = "Password needs at least 6 characters.";
+    go.disabled = true; go.textContent = "Checking…"; er.textContent = "";
+    try { const r = await api.resetPassword(id, code, pw); S.me = r.profile; S.intro = true; S.noRec = false; sfx.play("up"); codeScreen(r.code, "Password changed. Here is your new recovery code", () => { home(); pollSocial(true); }); }
+    catch (e) { er.textContent = e.message || "Couldn't connect. Check your internet and try again."; go.disabled = false; go.textContent = "Set new password"; }
+  };
+  $$("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") go.click(); });
+}
+async function checkRec() { if (!S.me) return; S.noRec = !(await api.hasRecovery()); if ($(".hero") && S.tab === "play") nudge(); }
+function nudge() {
+  if (!S.noRec || $(".nudge") || !$(".hero")) return;
+  $(".hero").insertAdjacentHTML("afterend", `<button class="nudge" id="rcn"><b>Protect your account</b><span>Get a recovery code in case you forget your password</span></button>`);
+  $("#rcn").onclick = makeCode;
+}
+async function makeCode() {
+  try { const c = await api.makeRecovery(); S.noRec = false; codeScreen(c, "Your recovery code", () => meTab()); } catch (e) { toast(e.message); }
+}
+function passSheet() {
+  sheet(`<h2>Change password</h2><label for="op">Current password</label><input id="op" type="password" autocomplete="current-password"><label for="np1">New password</label><input id="np1" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+   <div class="err" id="er" role="alert"></div><button class="btn" id="sv">Save new password</button>`);
+  $("#sv").onclick = async () => { const b = $("#sv"); b.disabled = true; try { await api.changePassword($("#op").value, $("#np1").value); closeSheet(); toast("Password changed."); sfx.play("up"); } catch (e) { $("#er").textContent = e.message; b.disabled = false; } };
+}
+
 /* ---------- me ---------- */
 function meTab() {
   leaveRoom(); S.tab = "me"; const st = S.me;
@@ -297,13 +343,16 @@ function meTab() {
    <div class="card"><h2>Pick your buddy</h2><p class="sub" style="margin:4px 0 0">Everyone in your room sees this on the board.</p>${avatarGrid(myAv(), `<label class="avup" title="Use your own picture"><input type="file" id="upl" accept="image/*" hidden><span>📷</span><small>My photo</small></label>`)}</div>
    <div class="card"><div class="setrow"><span>Sound effects</span><button class="chip ${sfx.on ? "on" : ""}" id="s2">${sfx.on ? "On" : "Off"}</button></div>
    <div class="setrow"><span>Table color</span><span class="chips">${THEMES.map(t => `<button class="chip ${document.documentElement.dataset.theme === t ? "on" : ""}" data-th="${t}">${THEME_NAMES[t]}</button>`).join("")}</span></div></div>
+   <div class="card"><h2>Account security</h2><p class="sub" style="margin:4px 0 12px">${S.noRec ? "You have no recovery code yet. Make one so you can get back in if you forget your password." : "Your recovery code lets you reset a forgotten password. Making a new one replaces the old one."}</p><button class="btn ${S.noRec ? "" : "g"}" id="rc2">${S.noRec ? "Get recovery code" : "New recovery code"}</button><button class="btn g" id="cpw" style="margin-top:12px">Change password</button></div>
    <button class="btn g" id="so">Log out</button>`);
   const setAv = async a => { try { S.me = await api.setAvatar(a) || S.me; } catch (e) { return toast(e.message); } sfx.play("sparkle"); meTab(); };
   $$("[data-av]").forEach(b => b.onclick = () => setAv(b.dataset.av));
   $("#upl").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { setAv(await photoToAvatar(f)); } catch (err) { toast(err.message); } };
   $("#s2").onclick = () => { setSound(!sfx.on); meTab(); };
+  $("#rc2").onclick = () => { if (S.noRec) return makeCode(); sheet(`<h2>Make a new code?</h2><p class="sub">Your old recovery code will stop working.</p><div class="row2" style="margin-top:6px"><button class="btn g" id="no">Keep old</button><button class="btn" id="yes">New code</button></div>`); $("#no").onclick = closeSheet; $("#yes").onclick = () => { closeSheet(); makeCode(); }; };
+  $("#cpw").onclick = passSheet;
   $$("[data-th]").forEach(b => b.onclick = () => { setTheme(b.dataset.th); meTab(); });
-  $("#so").onclick = () => { api.logOut(); S.social = { friends: [], incoming: [], outgoing: [], invites: [] }; $$(".invbar").forEach(x => x.remove()); authScreen("in"); };
+  $("#so").onclick = () => { api.logOut(); S.noRec = false; S.social = { friends: [], incoming: [], outgoing: [], invites: [] }; $$(".invbar").forEach(x => x.remove()); authScreen("in"); };
 }
 
 /* ---------- boot ---------- */
@@ -313,6 +362,7 @@ function meTab() {
   setInterval(() => pollSocial(), 8000);
   S.me = await api.me();
   api.hit();
+  checkRec();
   if (!S.me) return authScreen("in");
   pollSocial(true);
   home(join ? join.toUpperCase() : undefined);

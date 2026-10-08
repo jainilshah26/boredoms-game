@@ -2,7 +2,7 @@
 
 Multiplayer party games with live rooms and cute avatars. Live at https://boredoms-game.vercel.app
 
-**Games:** Ludo, Snake & Ladder, Business Tycoon (40-square world tour of 30 UNESCO World Heritage Sites, up to 10 players), Card Clash, Tic-Tac-Toe, Sudoku, Snake (Nokia style) and Red Ball (platformer). Snake and Red Ball have a global high-score board.
+**Games:** Ludo, Snake & Ladder, Business Tycoon (40-square world tour of 30 UNESCO World Heritage Sites, up to 10 players), Card Clash, Tic-Tac-Toe, Sudoku, Teen Patti (play chips only, 2–10 players), Snake (Nokia style) and Red Ball (platformer). Snake and Red Ball have a global high-score board.
 
 - **Front end:** plain HTML/CSS/ES modules, no build step (`index.html`, `css/`, `js/`). Installable on phones (web app manifest and icons).
 - **Accounts and scores:** Supabase Postgres functions (`bf_signup`, `bf_login`, `bf_submit_score`, ...). Passwords are bcrypt-hashed; the tables are not readable with the public key.

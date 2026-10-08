@@ -230,4 +230,4 @@ function meTab() {
   if (!S.me) return authScreen("in");
   home(join ? join.toUpperCase() : undefined);
 })();
-window.__bf = { S, Net, api };
+window.__bf = { S, Net, api, startGame };

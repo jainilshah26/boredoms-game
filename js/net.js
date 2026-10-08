@@ -2,6 +2,7 @@
 import { CONFIG } from "./config.js";
 import { store, toast } from "./fx.js";
 import { GAME } from "./games/index.js";
+import { AVATARS } from "./avatars.js";
 
 export const PID = (() => { const r = () => Math.random().toString(36).slice(2, 10); try { let p = sessionStorage.getItem("bf_pid"); if (!p) { p = r(); sessionStorage.setItem("bf_pid", p); } return p; } catch (e) { return r(); } })();
 /* ?offline switches to a test mode: accounts live on this device and rooms work between tabs of one browser. */
@@ -206,9 +207,10 @@ export function startGame(gameId, bots) {
   const r = Net.room, g = GAME[gameId];
   const humans = r.players.slice(0, g.max).map(p => ({ id: p.id, n: p.n, av: p.av, c: p.c }));
   const want = Math.min(g.max, Math.max(g.min, humans.length + (bots || 0)));
-  const BOTS = ["Pixel", "Turbo", "Nova", "Zippy", "Biscuit", "Comet", "Mango", "Pogo", "Waffles"], BAV = ["robot", "alien", "ghost", "dino", "pig", "frog", "koala", "unicorn", "axolotl", "bear"];
+  const BOTS = ["Pixel", "Turbo", "Nova", "Zippy", "Biscuit", "Comet", "Mango", "Pogo", "Waffles"];
   const players = [...humans]; let k = 0;
-  while (players.length < want) { players.push({ id: null, n: BOTS[(k + (Math.random() * 9 | 0)) % BOTS.length] + (k ? "" : ""), av: BAV[(k * 3 + (Math.random() * 9 | 0)) % BAV.length], c: COLORS[players.length % COLORS.length], bot: true }); k++; }
+  const freeAv = () => { const taken = new Set(players.map(p => p.av)), pool = AVATARS.map(a => a.id).filter(id => !taken.has(id)); return pool.length ? pool[Math.random() * pool.length | 0] : "robot"; };
+  while (players.length < want) { players.push({ id: null, n: BOTS[(k + (Math.random() * 9 | 0)) % BOTS.length], av: freeAv(), c: COLORS[players.length % COLORS.length], bot: true }); k++; }
   const used = new Set(); players.forEach(p => { if (p.bot) { while (used.has(p.n) || humans.some(h => h.n === p.n)) p.n += "!"; used.add(p.n); } });
   Net.runner = new Runner(gameId, players, r.live);
   Net.runner.begin();

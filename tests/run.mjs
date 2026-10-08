@@ -3,6 +3,7 @@ import { GAME, LIST, META } from "../js/games/index.js";
 import { AVATARS } from "../js/avatars.js";
 import { newSnake, step as snakeStep, turn, COLS, ROWS, interval } from "../js/games/snake_core.js";
 import { genLevel, newWorld, stepWorld, TILE, GROUND } from "../js/games/bounce_core.js";
+import { evalHand, cmpHands } from "../js/games/teenpatti_core.js";
 import { arcadeState, arcadeAct } from "../js/games/arcade.js";
 
 let failed = 0;
@@ -11,7 +12,7 @@ const section = t => console.log("\n" + t);
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: null, n: "P" + i, av: "cat", c: "#fff", bot: true }));
 
 section("Catalogue");
-ok(LIST.length === 8, "8 games listed");
+ok(LIST.length === 9, "9 games listed");
 ok(AVATARS.length >= 20 && new Set(AVATARS.map(a => a.id)).size === AVATARS.length, "avatars have unique ids");
 ok(AVATARS.every(a => a.svg && a.bg), "every avatar has artwork and a colour");
 for (const g of LIST) ok(META[g.id] && GAME[g.id].mount && GAME[g.id].init, `${g.id} is wired up`);
@@ -68,6 +69,22 @@ section("Red Ball levels");
   const a = genLevel(123, 3), b = genLevel(123, 3), c = genLevel(124, 3); ok(JSON.stringify(a.rings) === JSON.stringify(b.rings), "same seed gives same level"); ok(JSON.stringify(a.rings) !== JSON.stringify(c.rings), "different seeds differ");
   const w = newWorld(5, 0); for (let i = 0; i < 90; i++) stepWorld(w, {}); ok(w.ball.onGround && Math.abs(w.ball.y - (GROUND * TILE - 12)) < 1.5, "ball rests on the ground");
   const j = newWorld(5, 0); let apex = j.ball.y; for (let i = 0; i < 80; i++) { stepWorld(j, { jump: true }); apex = Math.min(apex, j.ball.y); } const h = (GROUND * TILE - 12 - apex) / TILE; ok(h > 2.5 && h < 3.5, `jump height ${h.toFixed(1)} tiles`);
+}
+
+section("Teen Patti");
+{
+  const H = s => evalHand(s.split(" ").map(x => ({ r: { A: 14, K: 13, Q: 12, J: 11, T: 10 }[x[0]] || +x[0], s: x[1] })));
+  const order = ["AS AH AD", "KS KH KD", "AS KS QS", "AS 2S 3S", "5S 4S 3S", "AS KH QD", "AS 2H 3D", "KS QH JD", "4S 3H 2D", "AS 2S 9S", "AS 2S 8S", "KS KH 2D", "AS KH 9D", "AS KH 8D", "KS QH 2D"];
+  let good = true; for (let i = 0; i + 1 < order.length; i++) if (cmpHands(H(order[i]), H(order[i + 1])) <= 0) { good = false; console.log("  order broke at", order[i], order[i + 1]); }
+  ok(good, "hand ranking order");
+  ok(cmpHands(H("AS KH 9D"), H("AC KD 9H")) === 0, "exact tie detected");
+  const g = GAME.teenpatti; let bad = 0, ended = 0;
+  for (let n = 2; n <= 10; n++) for (let r = 0; r < 20; r++) {
+    const s = g.init(mk(n)); let i = 0;
+    while (!s.over && i++ < 4000) { const a = g.bot(s); if (!a) { bad++; break; } if (g.act(s, { ...a, p: s.turn }) === null) { bad++; break; } if (s.chips.reduce((x, y) => x + y, 0) + s.pot !== 1000 * n) { bad++; break; } }
+    if (s.over) ended++; else bad++;
+  }
+  ok(bad === 0, "bot-vs-bot games keep chips constant and never stall"); ok(ended === 180, "every simulated game ends");
 }
 
 section("Arcade scoring and rooms");

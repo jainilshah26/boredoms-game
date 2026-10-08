@@ -2,6 +2,7 @@
   "name": "boredoms-fun",
   "private": true,
   "type": "module",
-  "description": "Boredoms Fun: multiplayer party games. Static site, no build step.",
-  "scripts": { "test": "node tests/run.mjs" }
+  "description": "Boredoms Fun: multiplayer party games. Static site; `npm run build` bundles it into dist/.",
+  "scripts": { "build": "node scripts/build.mjs", "test": "node tests/run.mjs" },
+  "devDependencies": { "esbuild": "^0.25.0" }
 }

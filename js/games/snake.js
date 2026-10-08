@@ -22,7 +22,7 @@ export default {
     let cell = 16, dpr = 1;
     const size = () => {
       const land = innerWidth > innerHeight && innerHeight < 520, w = Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), 420);
-      cell = Math.max(land ? 10 : 14, Math.min(Math.floor(w / COLS), Math.floor(((land ? innerHeight - 110 : innerHeight - 330)) / ROWS)));
+      cell = Math.max(land ? 10 : 11, Math.min(Math.floor(w / COLS), Math.floor(((land ? innerHeight - 110 : innerHeight - (innerHeight < 700 ? 440 : 400))) / ROWS)));
       dpr = Math.min(devicePixelRatio || 1, 3); cv.width = cell * COLS * dpr; cv.height = cell * ROWS * dpr; cv.style.width = cell * COLS + "px"; cv.style.height = cell * ROWS + "px"; g.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     size(); const ro = new ResizeObserver(() => { size(); draw(); }); ro.observe(wrap.parentElement);
@@ -64,10 +64,11 @@ export default {
     const key = e => { const d = DIR[e.key]; if (d) { e.preventDefault(); press(d); } else if (e.key === " " && mode === "ready") { e.preventDefault(); start(); } };
     addEventListener("keydown", key);
     $$(root, ".dpad button").forEach(b => b.addEventListener("pointerdown", e => { e.preventDefault(); press(DIR[b.dataset.d]); }));
+    /* swipe anywhere on the game screen (not only on the board) */
     let sx = 0, sy = 0, sw = false;
-    wrap.addEventListener("pointerdown", e => { if (e.target.closest(".arc-ov") && mode !== "play") return; sx = e.clientX; sy = e.clientY; sw = true; });
-    wrap.addEventListener("pointermove", e => { if (!sw) return; const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { press(Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) }); sx = e.clientX; sy = e.clientY; } });
-    addEventListener("pointerup", () => sw = false);
+    root.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; sx = e.clientX; sy = e.clientY; sw = true; });
+    root.addEventListener("pointermove", e => { if (!sw) return; const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { press(Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) }); sx = e.clientX; sy = e.clientY; } });
+    addEventListener("pointerup", () => sw = false); addEventListener("pointercancel", () => sw = false);
     const vis = () => { if (!DEBUG && document.hidden && mode === "play") { mode = "paused"; ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Paused</h2><button class="btn" id="res">Resume</button></div>`; $(ov, "#res").onclick = () => { mode = "play"; ov.hidden = true; last = performance.now(); }; } };
     document.addEventListener("visibilitychange", vis);
     hud(); draw(); raf = nextFrame(loop);

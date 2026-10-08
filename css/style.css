@@ -358,3 +358,23 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .game.bounce>.pad2{width:100%;align-self:stretch}.game.snake>.dpad{align-self:center}
 
 @media (max-height:520px) and (orientation:landscape){main{max-width:920px}}
+
+/* ===== arcade screens: centred, big thumb controls, clear of the browser's bottom bar ===== */
+.game.snake,.game.bounce{display:flex;flex-direction:column;align-items:center;min-height:0;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
+.game.snake>.strip,.game.bounce>.strip,.game.snake>.banner,.game.bounce>.banner{align-self:stretch}
+.game.snake>.dpad,.game.bounce>.pad2{margin-top:14px;padding-top:0}
+.arc-hud{width:100%;justify-content:center}
+.arc-wrap{margin-left:auto;margin-right:auto}
+.game.snake{touch-action:none;-webkit-touch-callout:none}
+.dpad{grid-template-columns:repeat(3,minmax(84px,112px));grid-template-rows:repeat(2,68px);gap:10px;margin:14px auto 0;width:max-content;max-width:100%}
+.dpad button{font-size:30px;border-width:2px}
+.dpad button[data-d=ArrowUp]{grid-column:2;grid-row:1}.dpad button[data-d=ArrowLeft]{grid-column:1;grid-row:2}.dpad button[data-d=ArrowDown]{grid-column:2;grid-row:2}.dpad button[data-d=ArrowRight]{grid-column:3;grid-row:2}
+.game.bounce>.pad2{width:100%;max-width:560px;align-self:center}
+.pad2 button{height:84px;min-width:84px;font-size:34px}.pad2 .jb{min-width:136px;flex:1;max-width:200px}
+@media (max-width:370px){.dpad{grid-template-columns:repeat(3,minmax(70px,1fr));grid-template-rows:repeat(2,60px);gap:8px;width:100%}.pad2 button{height:72px;min-width:72px}.pad2 .jb{min-width:110px}}
+@media (max-height:520px) and (orientation:landscape){
+  .game.snake,.game.bounce{display:grid;align-items:start;padding-bottom:20px}
+  .game.snake>.arc-wrap,.game.bounce>.arc-wrap{grid-column:1;grid-row:1/span 6}
+  .game.snake>:not(.arc-wrap),.game.bounce>:not(.arc-wrap){grid-column:2}
+  .dpad{grid-template-rows:repeat(2,56px);margin:8px auto}.pad2 button{height:68px}
+}

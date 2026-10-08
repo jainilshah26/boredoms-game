@@ -52,6 +52,21 @@ export const api = {
     } catch (e) { }
   },
   logOut() { this.token = null; store.set("bf_token", null); },
+  /* arcade high scores: global when online, on this device in test mode */
+  async submitScore(game, score) {
+    try {
+      if (cloud) return await rpc("bf_submit_score", { p_token: this.token, p_game: game, p_score: Math.max(0, score | 0) });
+      const all = store.get("bf_scores", {}), me = (LU()[this.token] || {}).id || "You", g = all[game] = all[game] || {};
+      const prev = g[me] || 0; g[me] = Math.max(prev, score | 0); store.set("bf_scores", all);
+      return { best: g[me], rank: Object.values(g).filter(v => v > g[me]).length + 1, improved: score >= prev && score > 0 };
+    } catch (e) { return null; }
+  },
+  async leaderboard(game) {
+    try {
+      if (cloud) return (await rpc("bf_leaderboard", { p_game: game, p_limit: 8 })) || [];
+      return Object.entries((store.get("bf_scores", {})[game]) || {}).map(([name, score]) => ({ name, score })).sort((a, b) => b.score - a.score).slice(0, 8);
+    } catch (e) { return []; }
+  },
 };
 
 /* ---------- realtime bus ---------- */

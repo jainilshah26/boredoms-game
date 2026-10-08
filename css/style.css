@@ -317,7 +317,7 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
   .game.ludo>.lboard,.game.snl>.sbwrap,.game.tyc>.tboardw,.game.ttt>.tboard,.game.sdk>.sgrid{grid-column:1;grid-row:1/span 8;max-width:calc(100dvh - 96px);width:100%;margin:0 auto}
   .game.sdk>.sgrid{width:calc(100dvh - 96px)}
   .game.ludo>.lboard{max-width:calc(100dvh - 96px)}
-  .game>:not(.lboard):not(.sbwrap):not(.tboardw):not(.tboard):not(.sgrid){grid-column:2}
+  .game>:not(.lboard):not(.sbwrap):not(.tboardw):not(.tboard):not(.sgrid):not(.arc-wrap){grid-column:2}
   .game .controls,.game>.actions{position:static;background:none;padding:6px 0}
   .game .strip{justify-content:flex-start}
   .game .banner{margin:6px 0 2px;font-size:17px}
@@ -327,3 +327,34 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 
 .strip.many{gap:2px}.strip.many .pcell{min-width:0;flex:0 0 calc(20% - 4px);max-width:none;padding:3px 2px;gap:0}
 .strip.many .pcell b{font-size:10px;max-width:100%}.strip.many .pcell small{font-size:10px}
+
+/* ===== arcade games: Snake and Red Ball ===== */
+.arc-hud{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:var(--soft);margin:2px 0 8px;font-size:15px;letter-spacing:.04em}.arc-hud b{color:var(--gold);font-family:var(--serif);font-size:19px;margin-left:2px}
+.arc-wrap{position:relative;width:max-content;max-width:100%;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 0 0 3px var(--gold2),0 0 0 6px #0006,0 14px 28px #0000008c;background:#B9CC9A;touch-action:none;-webkit-user-select:none;user-select:none}
+.arc-wrap.wide{background:#5FB7F2}.arc-wrap canvas{display:block;image-rendering:auto;touch-action:none}
+.arc-ov{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,18,10,.78);padding:12px;overflow:auto;z-index:3}.arc-ov[hidden]{display:none}
+.ovc{display:grid;gap:6px;justify-items:center;text-align:center;width:100%;max-width:320px;color:var(--ink)}.ovc h2{color:var(--goldhi)}.ovc .sub{margin:0;font-size:14px}.ovc .big{font-family:var(--serif);font-weight:900;font-size:46px;line-height:1;color:var(--gold)}.ovc .btn{margin-top:8px;width:auto;min-width:180px}.ovc h3{margin-top:6px}
+.lb{list-style:none;margin:2px 0 0;padding:0;display:grid;gap:3px;width:100%;font-size:14px}.lb li{display:grid;grid-template-columns:22px 1fr auto;gap:6px;align-items:center;padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.07);text-align:left}.lb li.me{background:rgba(232,199,102,.25);box-shadow:inset 0 0 0 1px var(--gold)}.lb li span{color:var(--gold);font-family:var(--serif);font-weight:900}.lb li b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lb li em{font-style:normal;color:var(--goldhi);font-variant-numeric:tabular-nums}.lb .empty{display:block;text-align:center;color:var(--soft)}
+.dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,52px);gap:6px;justify-content:center;margin:12px auto 4px;touch-action:none}
+.dpad button{border:1px solid var(--gold2);border-radius:14px;background:linear-gradient(180deg,var(--panel2),var(--panel));color:var(--gold);font-size:22px;box-shadow:0 4px 0 #0008;touch-action:none;-webkit-user-select:none;user-select:none}.dpad button:active{transform:translateY(3px);box-shadow:0 1px 0 #0008}
+.dpad button[data-d=ArrowUp]{grid-column:2;grid-row:1}.dpad button[data-d=ArrowLeft]{grid-column:1;grid-row:2}.dpad button[data-d=ArrowDown]{grid-column:2;grid-row:3}.dpad button[data-d=ArrowRight]{grid-column:3;grid-row:2}
+.pad2{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:12px auto 4px;max-width:560px;touch-action:none}.pad2 .lr{display:flex;gap:10px}
+.pad2 button{height:74px;min-width:74px;border:1px solid var(--gold2);border-radius:20px;background:linear-gradient(180deg,var(--panel2),var(--panel));color:var(--gold);font-size:30px;box-shadow:0 5px 0 #0008;touch-action:none;-webkit-user-select:none;user-select:none;display:grid;place-items:center;line-height:1}.pad2 button.down{transform:translateY(4px);box-shadow:0 1px 0 #0008;background:linear-gradient(180deg,#FFF1B8,#D4A72C);color:#2A1C05}
+.pad2 .jb{min-width:128px;background:linear-gradient(180deg,#E0344A,#B3121F 60%,#7A0E1C);color:#FFF3D6;border-color:#E8C766}.pad2 .jb small{font-size:11px;letter-spacing:.2em}.pad2 .jb.down{background:linear-gradient(180deg,#FF6B7A,#E0344A);color:#fff}
+.game.snake,.game.bounce{padding-bottom:70px}
+@media (max-height:520px) and (orientation:landscape){
+  .game.snake,.game.bounce{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,280px);column-gap:18px;align-items:start}
+  .game.snake>.arc-wrap,.game.bounce>.arc-wrap{grid-column:1;grid-row:1/span 6}
+  .game.snake>:not(.arc-wrap),.game.bounce>:not(.arc-wrap){grid-column:2}
+  .pad2{flex-direction:column;align-items:stretch}.dpad{margin:6px auto}
+}
+@media (max-width:370px){.dpad{grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,46px)}.pad2 button{height:64px;min-width:64px}.pad2 .jb{min-width:104px}.arc-hud{gap:10px;font-size:13px}}
+
+/* arcade controls sit near the thumbs, at the bottom of the screen */
+.game.snake,.game.bounce{display:flex;flex-direction:column;min-height:calc(100dvh - 130px)}
+.game.snake>.dpad,.game.bounce>.pad2{margin-top:auto;padding-top:14px}
+.game.snake>.banner,.game.bounce>.banner{order:5}
+@media (max-height:520px) and (orientation:landscape){.game.snake,.game.bounce{display:grid;min-height:0}}
+.game.bounce>.pad2{width:100%;align-self:stretch}.game.snake>.dpad{align-self:center}
+
+@media (max-height:520px) and (orientation:landscape){main{max-width:920px}}

@@ -151,7 +151,7 @@ function gameSheet(id, o = {}) {
   let lo = Math.max(0, g.min - hum), hi = Math.max(lo, Math.min(3, g.max - hum)); if (g.solo || hum >= g.max) { lo = 0; hi = 0; }
   const opts = []; for (let k = lo; k <= hi; k++) opts.push(k);
   let bots = hum === 1 && !g.solo ? Math.max(lo, Math.min(2, hi)) : lo;
-  const sum = () => hum > g.max ? `The first ${g.max} players play. Everyone else watches.` : g.solo ? (hum > 1 ? "Race! Everyone gets the same puzzle. First to finish wins." : "Just you. Take your time.") : bots ? `${hum === 1 ? "You" : hum + " players"} + ${bots} bot${bots > 1 ? "s" : ""} will play.` : `All ${hum} players join.`;
+  const sum = () => hum > g.max ? `The first ${g.max} players play. Everyone else watches.` : g.solo ? (hum > 1 ? (g.raceText || "Race! Everyone gets the same puzzle. First to finish wins.") : "Just you. Take your time.") : bots ? `${hum === 1 ? "You" : hum + " players"} + ${bots} bot${bots > 1 ? "s" : ""} will play.` : `All ${hum} players join.`;
   const el = sheet(`<div class="gh ${red ? "red" : ""}"><span class="gi" aria-hidden="true">${ICON[id]}</span><div><h2>${g.name}</h2><p>${g.pl} · about ${g.time}</p></div></div>
    <h3>How to play</h3><ol class="how">${g.how.map(x => `<li>${x}</li>`).join("")}</ol>
    ${o.help ? `${o.note ? `<p class="sub">${o.note}</p>` : ""}<button class="btn" id="ok">Got it</button>` : `${opts.length > 1 ? `<h3>Bot opponents</h3><div class="chips" id="bc" style="margin-top:10px">${opts.map(k => `<button class="chip ${k === bots ? "on" : ""}" data-b="${k}">${k === 0 ? "No bots" : k + " bot" + (k > 1 ? "s" : "")}</button>`).join("")}</div>` : ""}
@@ -169,7 +169,7 @@ Net.cb.start = m => {
     mySeat: isLive ? players.findIndex(p => p.id === PID) : players.findIndex(p => !p.bot),
     mine: i => i >= 0 && i < players.length && (isLive ? players[i].id === PID : !players[i].bot),
     act: a => isLive ? send.act(a) : send.act(a, S.ctx.state.turn >= 0 ? S.ctx.state.turn : S.ctx.mySeat),
-    finished: w => finished(w),
+    finished: w => finished(w), api,
   };
   S.ctx = ctx; S.over = false; closeSheet(); gameScreen(m.g, ctx);
 };

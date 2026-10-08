@@ -46,6 +46,12 @@ export const sfx = {
       case "lose": [330, 262, 196].forEach((f, i) => this.tone(f, .24, "triangle", .06, i * .15)); break;
       case "err": this.tone(150, .14, "square", .05); break;
       case "turn": this.tone(880, .08, "sine", .05); this.tone(1175, .12, "sine", .05, .08); break;
+      case "eat": this.tone(660, .05, "square", .04); this.tone(990, .07, "square", .04, .05); break;
+      case "die": [400, 300, 220, 160].forEach((q, i) => this.tone(q, .14, "square", .05, i * .09)); break;
+      case "jump": this.tone(300, .16, "square", .04, 0, 380); break;
+      case "ring": this.tone(1318, .06, "triangle", .06); this.tone(1760, .12, "triangle", .06, .06); break;
+      case "spring": this.tone(220, .22, "sine", .08, 0, 700); break;
+      case "flag": [523, 784, 1047].forEach((q, i) => this.tone(q, .12, "triangle", .06, i * .08)); break;
       case "sparkle": [1568, 2093, 2637].forEach((f, i) => this.tone(f, .1, "sine", .035, i * .05)); break;
     }
   },

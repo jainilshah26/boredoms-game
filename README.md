@@ -6,6 +6,8 @@ Multiplayer party games with live rooms and cute avatars. Live at https://boredo
 
 **Friends:** search a Player ID, send and accept requests, see who is online, and invite friends to a live room with one tap (an invite banner appears on their screen). Tap **+ Friend** next to anyone in a room or on a leaderboard. Stored in Supabase (`bf_friends`, `bf_invites`, RPC-only).
 
+**Visitor analytics:** each browser sends one anonymous visit per session (random device id, mobile or desktop, referring site). No IP, no personal data, skipped when Do Not Track is on. Stored in `bf_visits`; read the numbers with the `bf_stats()` function (not callable from the app).
+
 **Stable rooms:** moves are acknowledged and retried, the screen stays awake in a live room, a dropped connection gets 12 seconds to recover, and returning to the app re-syncs the table.
 
 - **Front end:** plain HTML/CSS/ES modules, no build step (`index.html`, `css/`, `js/`). Installable on phones (web app manifest and icons).

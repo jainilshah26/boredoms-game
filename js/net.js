@@ -55,6 +55,16 @@ export const api = {
       const u = LU(), r = u[this.token]; if (r) { r.played++; if (won) r.wins++; store.set("bf_users", u); return { id: r.id, avatar: r.avatar, played: r.played, wins: r.wins }; }
     } catch (e) { }
   },
+  /* anonymous visit counter: a random id kept on this device, no IP or personal data. Skipped in test mode and when Do Not Track is on. */
+  async hit() {
+    try {
+      if (!cloud || navigator.doNotTrack === "1" || /[?&]debug/.test(location.search)) return;
+      let v = store.get("bf_vid"); if (!v) { v = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, "0")).join(""); store.set("bf_vid", v); }
+      let ref = ""; try { const h = new URL(document.referrer).hostname; if (h && h !== location.hostname) ref = h.replace(/^www\./, ""); } catch (e) { }
+      if (sessionStorage.getItem("bf_hit")) return; sessionStorage.setItem("bf_hit", "1");
+      await rpc("bf_hit", { p_vid: v, p_mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent), p_ref: ref, p_account: !!this.token });
+    } catch (e) { }
+  },
   logOut() { this.token = null; store.set("bf_token", null); },
   /* friends: requests, a friend list with online dots, and room invites */
   async friends() {

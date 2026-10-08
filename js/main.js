@@ -312,6 +312,7 @@ function meTab() {
   const join = (location.hash.match(/join=([A-Za-z0-9]{6})/) || [])[1];
   setInterval(() => pollSocial(), 8000);
   S.me = await api.me();
+  api.hit();
   if (!S.me) return authScreen("in");
   pollSocial(true);
   home(join ? join.toUpperCase() : undefined);

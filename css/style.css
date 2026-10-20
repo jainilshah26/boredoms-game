@@ -466,3 +466,9 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .inroom .game.ttt>.actions{bottom:auto}
 main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 main.hastabs{padding-bottom:116px}
+
+/* ---------- free flow & candy match ---------- */
+.pad2.cr.two button small,.pad2.cr button small{display:block}
+.arc-wrap.flowwrap{background:#0C141C}.arc-wrap.candywrap{background:#2A1A52}
+.pad2.cr.two button{font-size:28px}
+.game.candy .pad2 button{max-width:260px;margin:0 auto}

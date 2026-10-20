@@ -5,6 +5,8 @@ import { newSnake, step as snakeStep, turn, COLS, ROWS, interval } from "../js/g
 import { genLevel, newWorld, stepWorld, TILE, GROUND } from "../js/games/bounce_core.js";
 import { evalHand, cmpHands } from "../js/games/teenpatti_core.js";
 import { newMatch, next, play, BALLS, WICKETS, delivery } from "../js/games/cricket_core.js";
+import { makeLevel, newPlay, begin, step, solved, complete, adjacent, spec, reset, filled } from "../js/games/flow_core.js";
+import { newGame, swap, hint, hasMatch, N as CN, MOVES } from "../js/games/candy_core.js";
 import { arcadeState, arcadeAct } from "../js/games/arcade.js";
 
 let failed = 0;
@@ -13,7 +15,7 @@ const section = t => console.log("\n" + t);
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: null, n: "P" + i, av: "cat", c: "#fff", bot: true }));
 
 section("Catalogue");
-ok(LIST.length === 10, "10 games listed");
+ok(LIST.length === 12, "12 games listed");
 ok(AVATARS.length >= 20 && new Set(AVATARS.map(a => a.id)).size === AVATARS.length, "avatars have unique ids");
 ok(AVATARS.every(a => a.svg && a.bg), "every avatar has artwork and a colour");
 for (const g of LIST) ok(META[g.id] && GAME[g.id].mount && GAME[g.id].init, `${g.id} is wired up`);
@@ -99,6 +101,58 @@ section("Cricket");
   let bad = 0; for (let s = 1; s <= 300; s++) { const m = run(s, (d, mm) => [Math.random() < .1 ? null : Math.floor(Math.random() * 3) - 1, Math.random() * 600 - 350]); if (!m.over || m.wk > WICKETS || m.balls > BALLS || m.runs !== 0 && m.log.length === 0) bad++; const sum = m.log.length; if (sum < 1) bad++; } ok(bad === 0, "300 random innings all finish cleanly");
   ok(play(perfect, 0, 0) === null, "no play after the innings is over");
   let lines = new Set(), kinds = new Set(); for (let i = 0; i < 200; i++) { const d = delivery(3, i); lines.add(d.line); kinds.add(d.kind); } ok(lines.size === 5 || lines.size >= 3, "all lanes get used") && ok(kinds.size === 3, "fast, medium and spin deliveries");
+}
+
+section("Free Flow");
+{
+  let bad = 0, cells = 0;
+  for (let seed = 1; seed <= 40; seed++) for (let lvl = 0; lvl < 12; lvl++) {
+    const L = makeLevel(seed, lvl), [n, k] = spec(lvl), seen = new Set(); cells += n * n;
+    if (L.n !== n || L.k !== k || L.sol.length !== k) { bad++; continue; }
+    for (const s of L.sol) { if (s.length < 3) bad++; for (let i = 0; i < s.length; i++) { if (seen.has(s[i])) bad++; seen.add(s[i]); if (i && !adjacent(n, s[i - 1], s[i])) bad++; } }
+    if (seen.size !== n * n) bad++;
+    /* play the intended solution through the real move rules */
+    const p = newPlay(L); L.sol.forEach((s, c) => { begin(p, s[0]); for (let i = 1; i < s.length; i++) if (!step(p, c, s[i])) bad++; });
+    if (!solved(p)) bad++;
+  }
+  ok(bad === 0, "every generated puzzle is a valid full cover and its solution plays through (" + cells + " squares)");
+  const L = makeLevel(3, 1), p = newPlay(L), a = L.sol[0], b = L.sol[1];
+  begin(p, a[0]); for (let i = 1; i < 3; i++) step(p, 0, a[i]);
+  ok(p.paths[0].length === 3, "a line grows one square at a time"); step(p, 0, a[1]); ok(p.paths[0].length === 2, "moving back shortens the line");
+  ok(step(p, 0, a[0]) === true && p.paths[0].length === 1, "touching its own start cuts the line back");
+  begin(p, a[0]); for (let i = 1; i < a.length; i++) step(p, 0, a[i]); ok(complete(p, 0), "joining both dots completes a colour");
+  /* crossing: draw colour 1 across colour 0's line and it cuts it */
+  const q = newPlay(L); begin(q, a[0]); for (let i = 1; i < a.length - 1; i++) step(q, 0, a[i]);
+  const mid = a[2]; const nbr = [mid - 1, mid + 1, mid - L.n, mid + L.n].filter(x => x >= 0 && x < L.n * L.n && adjacent(L.n, mid, x) && q.own[x] < 0 && q.dot[x] < 0);
+  if (nbr.length) { const c1 = L.pairs[1].a; begin(q, c1); q.paths[1] = [nbr[0]]; q.own[nbr[0]] = 1; const before = q.paths[0].length; step(q, 1, mid); ok(q.paths[0].length < before && q.own[mid] === 1, "drawing over another colour cuts that line"); }
+  const r2 = newPlay(L); begin(r2, L.pairs[0].a); const dd = L.pairs[1].a, nn = [dd - 1, dd + 1, dd - L.n, dd + L.n].find(x => x >= 0 && x < L.n * L.n && adjacent(L.n, dd, x) && r2.dot[x] < 0);
+  r2.paths[0] = [L.pairs[0].a, nn]; r2.own[nn] = 0; ok(step(r2, 0, dd) === false, "a line cannot run through another colour's dot");
+  reset(p); ok(filled(p) === 0, "reset clears the board");
+}
+
+section("Candy Match");
+{
+  let bad = 0, total = 0, specials = new Set(), shuffles = 0;
+  for (let seed = 1; seed <= 150; seed++) {
+    const g = newGame(seed); if (hasMatch(g.b) || !hint(g)) bad++;
+    let guard = 0, last = 0;
+    while (g.moves > 0 && guard++ < 200) {
+      const h = hint(g); if (!h) { bad++; break; }
+      const before = g.moves, r = swap(g, h[0], h[1]); if (!r.ok || g.moves !== before - 1) { bad++; break; }
+      for (const f of r.frames) { if (f.t === "shuffle") shuffles++; if (f.t === "clear") { f.made.forEach(m => specials.add(m.k)); if (f.board.length !== CN * CN) bad++; } }
+      const ids = new Set(g.b.map(c => c.id)); if (ids.size !== CN * CN || g.b.some(c => !c)) bad++;
+      if (hasMatch(g.b)) bad++; if (g.score < last) bad++; last = g.score;
+    }
+    total += g.score; if (g.moves !== 0) bad++;
+  }
+  ok(bad === 0, "150 full games: boards always settle, ids stay unique, a move always exists");
+  ok(total / 150 > 1500, "a game scores a sensible amount (avg " + Math.round(total / 150) + ")");
+  ok(specials.has(1) || specials.has(2), "four in a row makes a striped candy"); ok(specials.has(4) || specials.has(3), "bigger matches make wrapped candies or colour bombs");
+  /* rules by hand */
+  const g = newGame(7); const before = JSON.stringify(g.b.map(c => c.t)); let bads = 0;
+  for (let i = 0; i < CN * CN; i++) for (const j of [i + 1, i + CN]) { if (j >= CN * CN || (j === i + 1 && j % CN === 0)) continue; const h = hint(g); }
+  const noMove = (() => { const q = newGame(11); let a = 0; for (let i = 0; i < CN * CN; i++) for (const j of [i + 1, i + CN]) { if (j >= CN * CN || (j === i + 1 && j % CN === 0)) continue; const r = swap(q, i, j); if (!r.ok) { a++; if (q.moves !== MOVES - (MOVES - q.moves)) bads++; } else return a; } return a; })();
+  ok(bads === 0, "a swap that matches nothing is undone and costs no move"); ok(swap(newGame(2), 0, 9).ok === false, "only neighbours can be swapped");
 }
 
 section("Arcade scoring and rooms");

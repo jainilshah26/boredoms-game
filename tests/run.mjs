@@ -6,7 +6,7 @@ import { genLevel, newWorld, stepWorld, TILE, GROUND } from "../js/games/bounce_
 import { evalHand, cmpHands } from "../js/games/teenpatti_core.js";
 import { newMatch, next, play, BALLS, WICKETS, delivery } from "../js/games/cricket_core.js";
 import { makeLevel, newPlay, begin, step, solved, perfect, complete, adjacent, spec, reset, filled } from "../js/games/flow_core.js";
-import { newGame, swap, hint, hasMatch, N as CN, MOVES } from "../js/games/candy_core.js";
+import { newGame, swap, hint, hasMatch, N as CN, levelSpec, progress, validMoves } from "../js/games/candy_core.js";
 import { arcadeState, arcadeAct } from "../js/games/arcade.js";
 
 let failed = 0;
@@ -133,27 +133,30 @@ section("Free Flow");
 
 section("Candy Match");
 {
-  let bad = 0, total = 0, specials = new Set(), shuffles = 0;
-  for (let seed = 1; seed <= 150; seed++) {
-    const g = newGame(seed); if (hasMatch(g.b) || !hint(g)) bad++;
+  let bad = 0, total = 0, games = 0, specials = new Set(), shuffles = 0, wins = 0, l1 = 0, l1n = 0, jellyLevels = 0;
+  for (let seed = 1; seed <= 60; seed++) for (let lv = 1; lv <= 6; lv++) {
+    const g = newGame(seed, lv), sp = levelSpec(lv); games++;
+    if (hasMatch(g.b) || !hint(g) || g.moves !== sp.moves) bad++;
+    if (sp.kind === "jelly") { jellyLevels++; if (g.jelly.size !== sp.jelly) bad++; }
     let guard = 0, last = 0;
-    while (g.moves > 0 && guard++ < 200) {
-      const h = hint(g); if (!h) { bad++; break; }
+    while (!g.won && !g.lost && guard++ < 100) {
+      const mv = validMoves(g), h = mv[(seed + guard) % mv.length]; if (!h) { bad++; break; }
       const before = g.moves, r = swap(g, h[0], h[1]); if (!r.ok || g.moves !== before - 1) { bad++; break; }
       for (const f of r.frames) { if (f.t === "shuffle") shuffles++; if (f.t === "clear") { f.made.forEach(m => specials.add(m.k)); if (f.board.length !== CN * CN) bad++; } }
       const ids = new Set(g.b.map(c => c.id)); if (ids.size !== CN * CN || g.b.some(c => !c)) bad++;
       if (hasMatch(g.b)) bad++; if (g.score < last) bad++; last = g.score;
     }
-    total += g.score; if (g.moves !== 0) bad++;
+    if (!(g.won || g.lost) || (g.won && !progress(g).done) || (g.lost && (g.moves !== 0 || progress(g).done))) bad++;
+    if (swap(g, 0, 1).ok) bad++;
+    if (g.won) wins++; total += g.score; if (lv === 1) { l1n++; if (g.won) l1++; }
   }
-  ok(bad === 0, "150 full games: boards always settle, ids stay unique, a move always exists");
-  ok(total / 150 > 1500, "a game scores a sensible amount (avg " + Math.round(total / 150) + ")");
+  ok(bad === 0, games + " levels played out: boards settle, ids stay unique, a move always exists, every level ends won or lost");
+  ok(l1 / l1n > .8, "level 1 is easy to beat (" + Math.round(l1 / l1n * 100) + "%)"); ok(wins / games > .25 && wins < games, "not every level is a win and not every level a loss (" + Math.round(wins / games * 100) + "% won)");
   ok(specials.has(1) || specials.has(2), "four in a row makes a striped candy"); ok(specials.has(4) || specials.has(3), "bigger matches make wrapped candies or colour bombs");
-  /* rules by hand */
-  const g = newGame(7); const before = JSON.stringify(g.b.map(c => c.t)); let bads = 0;
-  for (let i = 0; i < CN * CN; i++) for (const j of [i + 1, i + CN]) { if (j >= CN * CN || (j === i + 1 && j % CN === 0)) continue; const h = hint(g); }
-  const noMove = (() => { const q = newGame(11); let a = 0; for (let i = 0; i < CN * CN; i++) for (const j of [i + 1, i + CN]) { if (j >= CN * CN || (j === i + 1 && j % CN === 0)) continue; const r = swap(q, i, j); if (!r.ok) { a++; if (q.moves !== MOVES - (MOVES - q.moves)) bads++; } else return a; } return a; })();
-  ok(bads === 0, "a swap that matches nothing is undone and costs no move"); ok(swap(newGame(2), 0, 9).ok === false, "only neighbours can be swapped");
+  ok([1, 2, 3].map(n => levelSpec(n).kind).join() === "score,collect,jelly" && levelSpec(4).target > levelSpec(1).target && levelSpec(5).target > levelSpec(2).target && levelSpec(6).jelly > levelSpec(3).jelly, "levels cycle through the three goals and get harder");
+  const h2 = newGame(2); ok(swap(h2, 0, 9).ok === false, "only neighbours can be swapped");
+  const q = newGame(11); let undone = true; for (let i = 0; i < CN * CN - 1; i++) { const j = i + 1; if (j % CN === 0) continue; if (!validMoves(q).some(m => m[0] === i && m[1] === j)) { const before = q.moves, r = swap(q, i, j); if (r.ok || q.moves !== before) undone = false; } }
+  ok(undone, "a swap that matches nothing is undone and costs no move");
 }
 
 section("Arcade scoring and rooms");

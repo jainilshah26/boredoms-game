@@ -472,3 +472,7 @@ main.hastabs{padding-bottom:116px}
 .arc-wrap.flowwrap{background:#0C141C}.arc-wrap.candywrap{background:#2A1A52}
 .pad2.cr.two button{font-size:28px}
 .game.candy .pad2 button{max-width:260px;margin:0 auto}
+.goalbar{width:100%;display:flex;align-items:center;gap:10px;max-width:480px;margin:0 auto 8px;padding:6px 12px;border-radius:12px;border:1px solid var(--gold2);background:rgba(0,0,0,.3);font-weight:700;font-size:15px}
+.goalbar span{flex:none;min-width:84px;color:var(--ink)}.goalbar i{flex:1;height:12px;border-radius:7px;background:rgba(255,255,255,.12);overflow:hidden;display:block}
+.goalbar u{display:block;height:100%;width:0;border-radius:7px;text-decoration:none;background:linear-gradient(90deg,#F2B632,#FFE27A);transition:width .35s}
+.game.candy>.goalbar{align-self:stretch}

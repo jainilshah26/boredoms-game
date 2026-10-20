@@ -2,7 +2,7 @@ import { $, $$, stripHTML, setStrip, banner, queue } from "./common.js";
 import { sfx, burst, shake, buzz } from "../fx.js";
 import { arcadeState, arcadeAct, nextFrame, cancelFrame, DEBUG } from "./arcade.js";
 import { stripInfo, endRun, ovButtons, winBanner } from "./arcade_ui.js";
-import { N, newGame, swap, hint, validSwap, MOVES } from "./candy_core.js";
+import { N, newGame, swap, hint, validSwap, goalText, progress, LIVES } from "./candy_core.js";
 
 const COL = ["#E8453C", "#F2842B", "#F2C62E", "#35C07A", "#3B8CF0", "#A860E8"], DARK = ["#9E1B14", "#B2500B", "#B38C07", "#17804A", "#1B56B0", "#6A32A8"];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -14,7 +14,8 @@ export default {
     const P = ctx.players; let S = ctx.state;
     const best0 = +(localStorage.getItem("bf_best_candy") || 0);
     root.innerHTML = `<div class="game bounce candy">${P.length > 1 ? stripHTML(P, stripInfo(S, P)) : ""}
-      <div class="arc-hud"><span>Score <b id="sc">0</b></span><span>Moves <b id="mv">${MOVES}</b></span><span>Best <b id="bs">${best0}</b></span></div>
+      <div class="arc-hud"><span>Level <b id="lv">1</b></span><span>Score <b id="sc">0</b></span><span>Moves <b id="mv">0</b></span><span id="hr" aria-label="Lives"></span></div>
+      <div class="goalbar"><span id="gl"></span><i><u id="gf"></u></i></div>
       <div class="arc-wrap candywrap"><canvas id="cv" aria-label="Candy board"></canvas><div class="arc-ov" id="ov"></div></div>
       <div class="pad2 cr"><button id="ht" aria-label="Show a move">💡<small>HINT</small></button></div>
       <div class="banner"></div></div>`;
@@ -26,11 +27,16 @@ export default {
       cv.style.width = px + "px"; cv.style.height = px + "px"; cv.width = Math.round(px * dpr); cv.height = Math.round(px * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
       sprites.forEach(s => { if (s.cell >= 0) { s.x = s.tx = (s.cell % N) * c; s.y = s.ty = (s.cell / N | 0) * c; } });
     };
-    let G = newGame(S.seed), mode = "ready", busy = false, raf = 0, last = 0, best = best0, sel = -1, idle = 0, hintCells = [], pops = [], parts = [], shakeT = 0;
+    let level = 1, total = 0, lives = LIVES, G = newGame(S.seed, level), movesShown = G.moves, jellyShown = new Set(G.jelly), shownScore = 0, shownGot = 0, mode = "ready", busy = false, raf = 0, last = 0, best = best0, sel = -1, idle = 0, hintCells = [], pops = [], parts = [], shakeT = 0;
     const sprites = new Map();
-    const load = () => { sprites.clear(); G.b.forEach((cell, i) => sprites.set(cell.id, { id: cell.id, t: cell.t, k: cell.k, cell: i, x: (i % N) * c, y: (i / N | 0) * c, tx: (i % N) * c, ty: (i / N | 0) * c, sc: 1, al: 1, die: 0 })); };
+    const load = () => { hintCells = []; idle = 0; sprites.clear(); G.b.forEach((cell, i) => sprites.set(cell.id, { id: cell.id, t: cell.t, k: cell.k, cell: i, x: (i % N) * c, y: (i / N | 0) * c, tx: (i % N) * c, ty: (i / N | 0) * c, sc: 1, al: 1, die: 0 })); };
     size(); load(); const ro = new ResizeObserver(() => { size(); }); ro.observe(wrap.parentElement);
-    const hud = () => { $(root, "#sc").textContent = G.score; $(root, "#mv").textContent = G.moves; };
+    const GL = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣"];
+    const hud = () => {
+      const sp = G.spec; $(root, "#lv").textContent = level; $(root, "#sc").textContent = total + shownScore; $(root, "#mv").textContent = movesShown; $(root, "#hr").textContent = "❤️".repeat(lives) + "🖤".repeat(LIVES - lives);
+      const have = sp.kind === "score" ? Math.min(shownScore, sp.target) : sp.kind === "collect" ? Math.min(shownGot, sp.target) : sp.jelly - jellyShown.size, need = sp.kind === "score" ? sp.target : sp.kind === "collect" ? sp.target : sp.jelly;
+      $(root, "#gl").textContent = sp.kind === "score" ? `Score ${have} / ${need}` : sp.kind === "collect" ? `${GL[sp.color]} ${have} / ${need}` : `Jelly ${have} / ${need}`; $(root, "#gf").style.width = Math.round(have / need * 100) + "%";
+    };
 
     /* ---- drawing ---- */
     const star = (x, y, r) => { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .55 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); };
@@ -63,6 +69,7 @@ export default {
       const sx = shakeT > 0 ? Math.sin(now / 18) * 3 : 0; g.save(); g.translate(sx, 0);
       for (let i = 0; i < N * N; i++) { g.fillStyle = (i + (i / N | 0)) % 2 ? "#26164A" : "#2E1C5A"; g.fillRect((i % N) * c, (i / N | 0) * c, c, c); }
       if (sel >= 0) { g.strokeStyle = "#FFE27A"; g.lineWidth = 4; g.strokeRect((sel % N) * c + 2, (sel / N | 0) * c + 2, c - 4, c - 4); }
+      jellyShown.forEach(i => { const x = (i % N) * c, y = (i / N | 0) * c; g.fillStyle = "rgba(120,230,255,.30)"; g.beginPath(); g.roundRect ? g.roundRect(x + 2, y + 2, c - 4, c - 4, c * .2) : g.rect(x + 2, y + 2, c - 4, c - 4); g.fill(); g.strokeStyle = "rgba(190,248,255,.85)"; g.lineWidth = 2.5; g.stroke(); g.fillStyle = "rgba(255,255,255,.75)"; g.beginPath(); g.arc(x + c * .8, y + c * .22, c * .05, 0, 7); g.fill(); });
       const k = 1 - Math.exp(-dt / 70);
       sprites.forEach(s => {
         s.x += (s.tx - s.x) * k; s.y += (s.ty - s.y) * k; if (Math.abs(s.tx - s.x) < .3) s.x = s.tx; if (Math.abs(s.ty - s.y) < .3) s.y = s.ty;
@@ -85,7 +92,7 @@ export default {
     /* ---- play a move: animate each step the rules give back ---- */
     async function doSwap(a, b) {
       if (busy || mode !== "play" || !validSwap(a, b)) return; busy = true; sel = -1; hintCells = []; idle = 0;
-      const r = swap(G, a, b); const at = i => sprites.get(idAt[i]);
+      const r = swap(G, a, b); if (r.ok) { movesShown--; hud(); }
       /* ids of whatever stood on the two squares before the move */
       const idAt = {}; sprites.forEach(s => { idAt[s.cell] = s.id; });
       for (const f of r.frames) {
@@ -96,47 +103,66 @@ export default {
           sfx.play(f.combo > 1 ? "up" : "pop"); buzz(f.combo > 2 ? 25 : 10);
           const mid = f.cells[f.cells.length >> 1] ?? 0; pops.push({ s: "+" + f.gain, x: (mid % N + .5) * c, y: ((mid / N | 0) + .5) * c, t: performance.now(), big: f.combo > 1 });
           if (f.combo > 1) pops.push({ s: ["", "", "Sweet!", "Tasty!", "Delicious!", "Divine!"][Math.min(f.combo, 5)], x: px / 2, y: px * .45, t: performance.now(), big: true });
-          $(root, "#sc").textContent = f.score;
+          shownScore = f.score; shownGot = f.got; (f.jelly || []).forEach(i => { jellyShown.delete(i); burstAt(i, "#9FEFFF"); }); hud();
           await sleep(210);
           f.ids.forEach(id => sprites.delete(id));
           /* the board after gravity and refill: existing candies slide down, new ones drop in from above */
           const cols = {}; f.board.forEach((cell, i) => { let s = sprites.get(cell.id); if (!s) { const x = i % N; cols[x] = (cols[x] || 0) + 1; s = { id: cell.id, t: cell.t, k: cell.k, cell: i, x: x * c, y: -cols[x] * c, tx: x * c, ty: 0, sc: 1, al: 1, die: 0 }; sprites.set(cell.id, s); } s.cell = i; s.t = cell.t; s.k = cell.k; s.tx = (i % N) * c; s.ty = (i / N | 0) * c; idAt[i] = cell.id; });
           await sleep(330);
         } else if (f.t === "shuffle") { banner(root, "No moves left, shuffling…"); sprites.forEach(s => { s.sc = .3; }); f.board.forEach((cell, i) => { const s = sprites.get(cell.id); if (s) { s.t = cell.t; s.k = cell.k; s.cell = i; s.x = s.tx = (i % N) * c; s.y = s.ty = (i / N | 0) * c; } }); sfx.play("sparkle"); await sleep(500); banner(root, ""); }
+        else if (f.t === "win") { shownScore = f.score; hud(); await levelDone(f); return; }
+        else if (f.t === "lose") { await sleep(400); await levelFailed(); return; }
       }
       sprites.forEach(s => { if (!s.die) { s.sc = Math.max(s.sc, 1); if (s.sc > 1) s.sc = Math.max(1, s.sc - .5); } });
-      hud(); busy = false; if (G.moves <= 0) finish();
+      hud(); busy = false;
+    }
+    const showOv = html => { ov.hidden = false; ov.innerHTML = `<div class="ovc">${html}</div>`; };
+    function intro() {
+      const sp = G.spec; mode = "intro"; busy = false; movesShown = G.moves; jellyShown = new Set(G.jelly); shownScore = 0; shownGot = 0; hud();
+      showOv(`<p class="sub">Level ${level}</p><h2>${goalText(sp)}</h2><p class="sub">in ${sp.moves} moves</p><button class="btn" id="go">Play</button>`); $(ov, "#go").onclick = start;
+    }
+    async function levelDone(f) {
+      mode = "won"; total += G.score; shownScore = 0; sfx.play("win"); buzz([40, 30, 60]); burst(cv, ["⭐", "🍬", "🎉"], 8);
+      pops.push({ s: "Level clear!", x: px / 2, y: px * .42, t: performance.now(), big: true }); if (f.bonus) pops.push({ s: `+${f.bonus} bonus`, x: px / 2, y: px * .58, t: performance.now(), big: true });
+      $(root, "#sc").textContent = total; await sleep(1700);
+      level++; G = newGame(S.seed, level); load(); intro();
+    }
+    async function levelFailed() {
+      lives--; hud(); sfx.play("lose"); shake(wrap, 300);
+      if (lives <= 0) { mode = "over"; busy = false; return finish(); }
+      mode = "failed"; busy = false; showOv(`<h2>Out of moves</h2><p class="sub">${"❤️".repeat(lives)} left. Try the level again!</p><button class="btn" id="go">Try again</button>`);
+      $(ov, "#go").onclick = () => { G = newGame(S.seed, level); load(); intro(); };
     }
     function finish() {
-      mode = "over"; sfx.play("lose"); if (G.score > best) { best = G.score; try { localStorage.setItem("bf_best_candy", best); } catch (e) { } $(root, "#bs").textContent = best; }
-      setTimeout(() => endRun(ctx, "candy", G.score, ov, "Out of moves!").then(() => ovButtons(ov, S, ctx)), 500);
+      mode = "over"; if (total > best) { best = total; try { localStorage.setItem("bf_best_candy", best); } catch (e) { } }
+      setTimeout(() => endRun(ctx, "candy", total, ov, `Game over · Level ${level}`).then(() => ovButtons(ov, S, ctx)), 400);
     }
-    const start = () => { if (mode !== "ready") return; mode = "play"; ov.hidden = true; idle = 0; };
+    const start = () => { if (mode !== "ready" && mode !== "intro") return; mode = "play"; ov.hidden = true; idle = 0; };
 
     /* ---- input: swipe a candy, or tap one then its neighbour ---- */
     let down = null;
     const cellAt = e => { const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * N, y = (e.clientY - r.top) / r.height * N; return x < 0 || y < 0 || x >= N || y >= N ? -1 : (y | 0) * N + (x | 0); };
-    cv.addEventListener("pointerdown", e => { e.preventDefault(); if (mode === "ready") start(); if (mode !== "play" || busy) return; const i = cellAt(e); if (i < 0) return; idle = 0; hintCells = []; down = { i, x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture && cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener("pointerdown", e => { e.preventDefault(); if (mode !== "play" || busy) return; const i = cellAt(e); if (i < 0) return; idle = 0; hintCells = []; down = { i, x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture && cv.setPointerCapture(e.pointerId); });
     cv.addEventListener("pointermove", e => {
       if (!down || down.moved || busy) return; const dx = e.clientX - down.x, dy = e.clientY - down.y, th = (cv.getBoundingClientRect().width / N) * .35;
       if (Math.max(Math.abs(dx), Math.abs(dy)) > th) { down.moved = true; const to = Math.abs(dx) > Math.abs(dy) ? down.i + Math.sign(dx) : down.i + Math.sign(dy) * N; sel = -1; if (validSwap(down.i, to)) doSwap(down.i, to); }
     });
     const release = () => { if (down && !down.moved && !busy) { const i = down.i; if (sel >= 0 && validSwap(sel, i)) doSwap(sel, i); else { sel = sel === i ? -1 : i; sfx.play("tap"); } } down = null; };
     cv.addEventListener("pointerup", release); cv.addEventListener("pointercancel", () => { down = null; });
-    $(root, "#ht").addEventListener("pointerdown", e => { e.preventDefault(); if (mode === "ready") start(); if (mode === "play" && !busy) { showHint(); idle = 0; sfx.play("pop"); } });
+    $(root, "#ht").addEventListener("pointerdown", e => { e.preventDefault(); if (mode === "play" && !busy) { showHint(); idle = 0; sfx.play("pop"); } });
     const kd = e => { if (e.key === "h" || e.key === "H") { if (mode === "play" && !busy) showHint(); } }; addEventListener("keydown", kd);
     const vis = () => { if (!DEBUG && document.hidden && mode === "play" && !busy) { /* nothing is timed, so there is nothing to pause */ } }; document.addEventListener("visibilitychange", vis);
 
-    ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Candy Match</h2><p class="sub">Swipe a candy to swap it with its neighbour.<br>Match 3 or more of a kind. Match 4 or 5 for special candies!<br>You have ${MOVES} moves. Score as much as you can.</p><button class="btn" id="go">Tap to play</button></div>`; $(ov, "#go").onclick = start;
+    ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Candy Match</h2><p class="sub">Swipe a candy to swap it with its neighbour.<br>Match 3 or more of a kind. Match 4 or 5 for special candies!<br>Beat each level's goal before you run out of moves. You have ${LIVES} lives.</p><button class="btn" id="go">Start</button></div>`; $(ov, "#go").onclick = () => intro();
     hud(); raf = nextFrame(loop);
-    if (/[?&]debug/.test(location.search)) window.__dbg = { get G() { return G; }, get mode() { return mode; }, get busy() { return busy; }, start, swap: doSwap, hint: () => hint(G), get sprites() { return sprites; } };
+    if (/[?&]debug/.test(location.search)) window.__dbg = { get G() { return G; }, get level() { return level; }, get total() { return total; }, get lives() { return lives; }, get jelly() { return jellyShown; }, get mode() { return mode; }, get busy() { return busy; }, start, intro, goto(n) { level = n; G = newGame(S.seed, n); busy = false; load(); intro(); }, swap: doSwap, hint: () => hint(G), get sprites() { return sprites; } };
 
-    const fresh = ns => { S = ns; G = newGame(S.seed); mode = "ready"; busy = false; sel = -1; hintCells = []; parts = []; pops = []; load(); ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>New round</h2><button class="btn" id="go">Tap to play</button></div>`; $(ov, "#go").onclick = start; hud(); banner(root, ""); };
+    const fresh = ns => { S = ns; level = 1; total = 0; lives = LIVES; G = newGame(S.seed, level); busy = false; sel = -1; hintCells = []; parts = []; pops = []; load(); intro(); banner(root, ""); };
     const q = queue(async (s, ev) => {
       if (ev.some(e => e.t === "reset")) return fresh(s);
       S = s; if (P.length > 1) setStrip(root, -1, stripInfo(S, P));
       if (S.over) {
-        if (["play", "ready"].includes(mode) || (mode === "over" && false)) { mode = "over"; ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Round over</h2><p class="sub">The host ended the round.</p><div class="ovb" id="ovb"></div></div>`; }
+        if (["play", "ready", "intro", "won", "failed"].includes(mode)) { mode = "over"; ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Round over</h2><p class="sub">The host ended the round.</p><div class="ovb" id="ovb"></div></div>`; }
         winBanner(root, S, P, ctx); ovButtons(ov, S, ctx);
         if (ev.some(e => e.t === "done")) ctx.finished(P.length === 1 ? -1 : S.winner);
       } else if (mode === "over") ovButtons(ov, S, ctx);

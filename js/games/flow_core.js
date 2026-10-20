@@ -60,4 +60,6 @@ export function step(p, c, cell) {
 }
 export const reset = p => { p.paths.forEach((_, c) => { p.paths[c] = []; }); rebuild(p); };
 export const filled = p => { let n = 0; for (const v of p.own) if (v >= 0) n++; return n; };
-export const solved = p => p.paths.every((_, c) => complete(p, c)) && filled(p) === p.n * p.n;
+/* a puzzle is solved when every colour is joined; covering every square as well is a bonus */
+export const solved = p => p.paths.every((_, c) => complete(p, c));
+export const perfect = p => solved(p) && filled(p) === p.n * p.n;

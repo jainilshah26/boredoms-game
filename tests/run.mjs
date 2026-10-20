@@ -5,7 +5,7 @@ import { newSnake, step as snakeStep, turn, COLS, ROWS, interval } from "../js/g
 import { genLevel, newWorld, stepWorld, TILE, GROUND } from "../js/games/bounce_core.js";
 import { evalHand, cmpHands } from "../js/games/teenpatti_core.js";
 import { newMatch, next, play, BALLS, WICKETS, delivery } from "../js/games/cricket_core.js";
-import { makeLevel, newPlay, begin, step, solved, complete, adjacent, spec, reset, filled } from "../js/games/flow_core.js";
+import { makeLevel, newPlay, begin, step, solved, perfect, complete, adjacent, spec, reset, filled } from "../js/games/flow_core.js";
 import { newGame, swap, hint, hasMatch, N as CN, MOVES } from "../js/games/candy_core.js";
 import { arcadeState, arcadeAct } from "../js/games/arcade.js";
 
@@ -113,7 +113,7 @@ section("Free Flow");
     if (seen.size !== n * n) bad++;
     /* play the intended solution through the real move rules */
     const p = newPlay(L); L.sol.forEach((s, c) => { begin(p, s[0]); for (let i = 1; i < s.length; i++) if (!step(p, c, s[i])) bad++; });
-    if (!solved(p)) bad++;
+    if (!solved(p) || !perfect(p)) bad++;
   }
   ok(bad === 0, "every generated puzzle is a valid full cover and its solution plays through (" + cells + " squares)");
   const L = makeLevel(3, 1), p = newPlay(L), a = L.sol[0], b = L.sol[1];
@@ -127,6 +127,7 @@ section("Free Flow");
   if (nbr.length) { const c1 = L.pairs[1].a; begin(q, c1); q.paths[1] = [nbr[0]]; q.own[nbr[0]] = 1; const before = q.paths[0].length; step(q, 1, mid); ok(q.paths[0].length < before && q.own[mid] === 1, "drawing over another colour cuts that line"); }
   const r2 = newPlay(L); begin(r2, L.pairs[0].a); const dd = L.pairs[1].a, nn = [dd - 1, dd + 1, dd - L.n, dd + L.n].find(x => x >= 0 && x < L.n * L.n && adjacent(L.n, dd, x) && r2.dot[x] < 0);
   r2.paths[0] = [L.pairs[0].a, nn]; r2.own[nn] = 0; ok(step(r2, 0, dd) === false, "a line cannot run through another colour's dot");
+  { const L2 = makeLevel(9, 0), q2 = newPlay(L2); L2.sol.forEach((s, c) => { begin(q2, s[0]); for (let i = 1; i < s.length; i++) step(q2, c, s[i]); }); ok(solved(q2) && perfect(q2), "a full cover is perfect"); const first = L2.sol[0]; q2.paths[0] = []; begin(q2, first[0]); ok(!solved(q2), "a missing pair is not solved"); }
   reset(p); ok(filled(p) === 0, "reset clears the board");
 }
 

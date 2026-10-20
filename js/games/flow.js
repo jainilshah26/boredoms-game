@@ -2,7 +2,7 @@ import { $, $$, stripHTML, setStrip, banner, queue } from "./common.js";
 import { sfx, burst, shake, buzz } from "../fx.js";
 import { arcadeState, arcadeAct, nextFrame, cancelFrame, DEBUG } from "./arcade.js";
 import { stripInfo, endRun, ovButtons, winBanner } from "./arcade_ui.js";
-import { makeLevel, newPlay, begin, step, reset, complete, solved, filled, points, adjacent, spec } from "./flow_core.js";
+import { makeLevel, newPlay, begin, step, reset, complete, solved, perfect, filled, points, adjacent, spec } from "./flow_core.js";
 
 const COL = ["#E8453C", "#2E7BE8", "#F2B632", "#26B574", "#B068F0", "#F2842B", "#14C2D6", "#F06AAE", "#EDE6D3"];
 const TIME = 180;
@@ -50,7 +50,7 @@ export default {
     function check() {
       p.paths.forEach((_, k) => { const d = complete(p, k); if (d && !doneSet.has(k)) { doneSet.add(k); sfx.play("ring"); buzz(15); } if (!d) doneSet.delete(k); });
       if (solved(p) && mode === "play") {
-        mode = "solved"; solvedAt = performance.now(); const secs = (solvedAt - born) / 1000, gain = points(L.n) + Math.max(0, Math.round(60 - secs)); score += gain; flash = .8; pops.push({ s: "+" + gain, t: solvedAt });
+        mode = "solved"; solvedAt = performance.now(); const secs = (solvedAt - born) / 1000, full = perfect(p), gain = points(L.n) + Math.max(0, Math.round(60 - secs)) + (full ? 50 : 0); score += gain; flash = .8; pops.push({ s: (full ? "Perfect! +" : "+") + gain, t: solvedAt });
         sfx.play("win"); buzz([40, 30, 60]); burst(cv, ["⭐", "✨", "🎉"], 8); hud();
         setTimeout(() => { if (mode === "solved") { lvl++; load(); mode = "play"; } }, 1000);
       }
@@ -84,7 +84,7 @@ export default {
     const vis = () => { if (!DEBUG && document.hidden && mode === "play") { mode = "paused"; ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Paused</h2><button class="btn" id="res">Resume</button></div>`; $(ov, "#res").onclick = () => { mode = "play"; ov.hidden = true; last = performance.now(); }; } };
     document.addEventListener("visibilitychange", vis);
 
-    load(); ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Free Flow</h2><p class="sub">Drag from a dot to join it to the dot of the same colour.<br>Fill every square. Solve as many puzzles as you can in 3 minutes.</p><button class="btn" id="go">Tap to start</button></div>`; $(ov, "#go").onclick = start;
+    load(); ov.hidden = false; ov.innerHTML = `<div class="ovc"><h2>Free Flow</h2><p class="sub">Drag from a dot to join it to the dot of the same colour.<br>Join every pair. Fill every square too for a bonus.<br>Solve as many puzzles as you can in 3 minutes.</p><button class="btn" id="go">Tap to start</button></div>`; $(ov, "#go").onclick = start;
     raf = nextFrame(loop);
     if (/[?&]debug/.test(location.search)) window.__dbg = { get L() { return L; }, get p() { return p; }, get mode() { return mode; }, get score() { return score; }, get lvl() { return lvl; }, start, solve() { L.sol.forEach((s, c) => { begin(p, s[0]); for (let i = 1; i < s.length; i++) step(p, c, s[i]); }); check(); }, setLeft(ms) { left = ms; } };
 

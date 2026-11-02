@@ -1,20 +1,18 @@
-# Supabase's free plan pauses a project after about a week with no activity.
-# This pings the public leaderboard function every two days so the project counts as active.
+# Supabase's free plan pauses a project that has been idle for about a week.
+# Every day this reads the leaderboard AND writes a row (a keep-alive visit), so the database sees real activity.
 name: Keep Supabase awake
 on:
   schedule:
-    - cron: "17 5 */2 * *"
+    - cron: "17 5 * * *"
   workflow_dispatch:
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Call the leaderboard function
+      - name: Read and write
         run: |
-          code=$(curl -sS -o /tmp/out.json -w "%{http_code}" -X POST \
-            "https://djrozncpjbauqwboqcvn.supabase.co/rest/v1/rpc/bf_leaderboard" \
-            -H "apikey: sb_publishable_SH9aum38gVJjeg1UBXPXTQ_NXHOvYCR" \
-            -H "Content-Type: application/json" \
-            -d '{"p_game":"snake","p_limit":1}')
-          echo "HTTP $code"; cat /tmp/out.json
-          test "$code" = "200"
+          KEY="sb_publishable_SH9aum38gVJjeg1UBXPXTQ_NXHOvYCR"; URL="https://djrozncpjbauqwboqcvn.supabase.co/rest/v1/rpc"
+          r=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$URL/bf_leaderboard" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{"p_game":"snake","p_limit":1}')
+          w=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$URL/bf_hit" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{"p_vid":"keepalive-github-bot","p_mobile":false,"p_ref":"keepalive","p_account":false}')
+          echo "read HTTP $r, write HTTP $w"
+          test "$r" = "200" && test "$w" = "200"

@@ -1,4 +1,4 @@
-import { $, $$, esc, stripHTML, setStrip, banner, queue } from "./common.js";
+import { isLand, $, $$, esc, stripHTML, setStrip, banner, queue } from "./common.js";
 import { sfx, burst, shake, floatText, reduced, buzz } from "../fx.js";
 import { arcadeState, arcadeAct, nextFrame, cancelFrame, DEBUG } from "./arcade.js";
 import { stripInfo, endRun, ovButtons, winBanner } from "./arcade_ui.js";
@@ -20,12 +20,12 @@ export default {
     const cv = $(root, "#cv"), g = cv.getContext("2d"), ov = $(root, "#ov"), wrap = $(root, ".arc-wrap");
     let scale = 1, VWd = VW;
     const size = () => {
-      const land = innerWidth > innerHeight && innerHeight < 520, avail = land ? innerHeight - 100 : innerHeight - 330;
-      const cw = Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), 560); VWd = cw < 460 && !land ? 384 : VW;
+      const land = isLand(), avail = land ? innerHeight - 100 : innerHeight - 330;
+      const cw = Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), land ? 900 : 560); VWd = cw < 460 && !land ? 384 : VW;
       const w = Math.min(cw, Math.max(260, avail * VWd / VH)), dpr = Math.min(devicePixelRatio || 1, 3);
       cv.style.width = w + "px"; cv.style.height = w * VH / VWd + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(w * VH / VWd * dpr); scale = cv.width / VWd; g.setTransform(scale, 0, 0, scale, 0, 0);
     };
-    size(); const ro = new ResizeObserver(() => { size(); draw(); }); ro.observe(wrap.parentElement);
+    size(); const onSize = () => { size(); draw(); }; const ro = new ResizeObserver(onSize); ro.observe(wrap.parentElement); addEventListener("resize", onSize);
 
     const input = { left: false, right: false, jump: false };
     let run, w, mode = "ready", acc = 0, last = 0, raf = 0, parts = [], texts = [], freeze = 0, camX = 0, springT = 0, best = best0, banner2 = 0, ctxLevelMsg = "";
@@ -125,6 +125,6 @@ export default {
         if (ev.some(e => e.t === "done")) ctx.finished(P.length === 1 ? -1 : S.winner);
       } else if (mode === "over") ovButtons(ov, S, ctx);
     });
-    return { push: (s, e) => q.push(s, e), get busy() { return false; }, destroy() { cancelFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); ro.disconnect(); document.removeEventListener("visibilitychange", vis); } };
+    return { push: (s, e) => q.push(s, e), get busy() { return false; }, destroy() { cancelFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); ro.disconnect(); removeEventListener("resize", onSize); document.removeEventListener("visibilitychange", vis); } };
   },
 };

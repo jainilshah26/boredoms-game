@@ -29,3 +29,6 @@ export const rect = el => el.getBoundingClientRect();
 
 /* Banner under the board: whose move it is, or the result. */
 export function banner(root, text, kind = "") { const b = $(root, ".banner"); if (!b) return; b.className = "banner " + kind; b.innerHTML = text; }
+
+/* Side-by-side layout: phones on their side, and desktop and tablet-landscape windows (900px or wider). Matches the landscape media queries in the stylesheet. */
+export const isLand = () => (innerWidth > innerHeight && innerHeight < 520) || innerWidth >= 900;

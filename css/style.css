@@ -300,7 +300,7 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
   .sheet{max-width:620px;border-radius:24px;margin-bottom:5vh;border-bottom:1px solid var(--gold)}
   .sheet-wrap{align-items:center}
 }
-@media (max-height:520px) and (orientation:landscape){
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){
   .sheet{max-height:96%}
   .sign{margin-top:8px}.s-a{font-size:40px}
   .hand{min-height:110px;padding-top:12px}
@@ -313,7 +313,7 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .game.sdk>.actions,.game.clash>.actions{position:static;background:none;padding:0}
 .inroom .game .controls,.inroom .game>.actions{bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 .inroom .game.sdk>.actions,.inroom .game.clash>.actions{bottom:auto}
-@media (max-height:520px) and (orientation:landscape){
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){
   .game.ludo,.game.snl,.game.tyc,.game.ttt,.game.sdk{display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,300px);column-gap:18px;align-items:start;padding-bottom:20px}
   .game.ludo>.lboard,.game.snl>.sbwrap,.game.tyc>.tboardw,.game.ttt>.tboard,.game.sdk>.sgrid{grid-column:1;grid-row:1/span 8;max-width:calc(100dvh - 96px);width:100%;margin:0 auto}
   .game.sdk>.sgrid{width:calc(100dvh - 96px)}
@@ -343,7 +343,7 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .pad2 button{height:74px;min-width:74px;border:1px solid var(--gold2);border-radius:20px;background:linear-gradient(180deg,var(--panel2),var(--panel));color:var(--gold);font-size:30px;box-shadow:0 5px 0 #0008;touch-action:none;-webkit-user-select:none;user-select:none;display:grid;place-items:center;line-height:1}.pad2 button.down{transform:translateY(4px);box-shadow:0 1px 0 #0008;background:linear-gradient(180deg,#FFF1B8,#D4A72C);color:#2A1C05}
 .pad2 .jb{min-width:128px;background:linear-gradient(180deg,#E0344A,#B3121F 60%,#7A0E1C);color:#FFF3D6;border-color:#E8C766}.pad2 .jb small{font-size:11px;letter-spacing:.2em}.pad2 .jb.down{background:linear-gradient(180deg,#FF6B7A,#E0344A);color:#fff}
 .game.snake,.game.bounce{padding-bottom:70px}
-@media (max-height:520px) and (orientation:landscape){
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){
   .game.snake,.game.bounce{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,280px);column-gap:18px;align-items:start}
   .game.snake>.arc-wrap,.game.bounce>.arc-wrap{grid-column:1;grid-row:1/span 6}
   .game.snake>:not(.arc-wrap),.game.bounce>:not(.arc-wrap){grid-column:2}
@@ -355,10 +355,10 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .game.snake,.game.bounce{display:flex;flex-direction:column;min-height:calc(100dvh - 130px)}
 .game.snake>.dpad,.game.bounce>.pad2{margin-top:auto;padding-top:14px}
 .game.snake>.banner,.game.bounce>.banner{order:5}
-@media (max-height:520px) and (orientation:landscape){.game.snake,.game.bounce{display:grid;min-height:0}}
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){.game.snake,.game.bounce{display:grid;min-height:0}}
 .game.bounce>.pad2{width:100%;align-self:stretch}.game.snake>.dpad{align-self:center}
 
-@media (max-height:520px) and (orientation:landscape){main{max-width:920px}}
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){main{max-width:920px}}
 
 /* ===== arcade screens: centred, big thumb controls, clear of the browser's bottom bar ===== */
 .game.snake,.game.bounce{display:flex;flex-direction:column;align-items:center;min-height:0;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
@@ -373,7 +373,7 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .game.bounce>.pad2{width:100%;max-width:560px;align-self:center}
 .pad2 button{height:84px;min-width:84px;font-size:34px}.pad2 .jb{min-width:136px;flex:1;max-width:200px}
 @media (max-width:370px){.dpad{grid-template-columns:repeat(3,minmax(70px,1fr));grid-template-rows:repeat(2,60px);gap:8px;width:100%}.pad2 button{height:72px;min-width:72px}.pad2 .jb{min-width:110px}}
-@media (max-height:520px) and (orientation:landscape){
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){
   .game.snake,.game.bounce{display:grid;align-items:start;padding-bottom:20px}
   .game.snake>.arc-wrap,.game.bounce>.arc-wrap{grid-column:1;grid-row:1/span 6}
   .game.snake>:not(.arc-wrap),.game.bounce>:not(.arc-wrap){grid-column:2}
@@ -415,7 +415,7 @@ button,.tile,.tcell,.sc9,.hc,.ltok,.chip,.mode,.avup,.reactbar button{touch-acti
 .game.tp>.tp-acts{position:sticky;bottom:env(safe-area-inset-bottom,0px);z-index:25;padding:12px 0 10px;background:linear-gradient(180deg,transparent,var(--bg) 32%)}
 .inroom .game.tp>.tp-acts{bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 @media (max-width:370px){.pcw{width:68px;height:98px}.pc .tl b,.pc .br b{font-size:17px}.pc .mid{font-size:36px}.tp-table{padding:10px}.tp-pot b{font-size:26px}}
-@media (max-height:520px) and (orientation:landscape){
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){
   .game.tp{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr);column-gap:16px;align-items:start;padding-bottom:20px}
   .game.tp>.tp-info,.game.tp>.tp-seats,.game.tp>.tp-table{grid-column:1}.game.tp>.tp-me,.game.tp>.banner,.game.tp>.tp-acts{grid-column:2}
   .game.tp>.tp-acts{position:static;background:none;padding:6px 0}.pcw{width:64px;height:92px}
@@ -476,3 +476,4 @@ main.hastabs{padding-bottom:116px}
 .goalbar span{flex:none;min-width:84px;color:var(--ink)}.goalbar i{flex:1;height:12px;border-radius:7px;background:rgba(255,255,255,.12);overflow:hidden;display:block}
 .goalbar u{display:block;height:100%;width:0;border-radius:7px;text-decoration:none;background:linear-gradient(90deg,#F2B632,#FFE27A);transition:width .35s}
 .game.candy>.goalbar{align-self:stretch}
+@media (min-width:900px){main{padding-bottom:24px}main.hastabs{padding-bottom:116px}.game{padding-bottom:16px}}

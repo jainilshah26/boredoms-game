@@ -1,4 +1,4 @@
-import { $, $$, stripHTML, setStrip, banner, queue } from "./common.js";
+import { isLand, $, $$, stripHTML, setStrip, banner, queue } from "./common.js";
 import { sfx, burst, shake, buzz } from "../fx.js";
 import { arcadeState, arcadeAct, nextFrame, cancelFrame, DEBUG } from "./arcade.js";
 import { stripInfo, endRun, ovButtons, winBanner } from "./arcade_ui.js";
@@ -22,15 +22,15 @@ export default {
     const cv = $(root, "#cv"), g = cv.getContext("2d"), ov = $(root, "#ov"), wrap = $(root, ".arc-wrap");
     let px = 320, c = 40, dpr = 1;
     const size = () => {
-      const land = innerWidth > innerHeight && innerHeight < 520, avail = land ? innerHeight - 110 : innerHeight - (innerHeight < 700 ? 400 : 360);
-      px = Math.max(240, Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), 480, avail)); px -= px % N; c = px / N; dpr = Math.min(devicePixelRatio || 1, 3);
+      const land = isLand(), avail = land ? innerHeight - 110 : innerHeight - (innerHeight < 700 ? 400 : 360);
+      px = Math.max(240, Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), land ? 760 : 480, avail)); px -= px % N; c = px / N; dpr = Math.min(devicePixelRatio || 1, 3);
       cv.style.width = px + "px"; cv.style.height = px + "px"; cv.width = Math.round(px * dpr); cv.height = Math.round(px * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
       sprites.forEach(s => { if (s.cell >= 0) { s.x = s.tx = (s.cell % N) * c; s.y = s.ty = (s.cell / N | 0) * c; } });
     };
     let level = 1, total = 0, lives = LIVES, G = newGame(S.seed, level), movesShown = G.moves, jellyShown = new Set(G.jelly), shownScore = 0, shownGot = 0, mode = "ready", busy = false, raf = 0, last = 0, best = best0, sel = -1, idle = 0, hintCells = [], pops = [], parts = [], shakeT = 0;
     const sprites = new Map();
     const load = () => { hintCells = []; idle = 0; sprites.clear(); G.b.forEach((cell, i) => sprites.set(cell.id, { id: cell.id, t: cell.t, k: cell.k, cell: i, x: (i % N) * c, y: (i / N | 0) * c, tx: (i % N) * c, ty: (i / N | 0) * c, sc: 1, al: 1, die: 0 })); };
-    size(); load(); const ro = new ResizeObserver(() => { size(); }); ro.observe(wrap.parentElement);
+    size(); load(); const onSize = () => { size(); }; const ro = new ResizeObserver(onSize); ro.observe(wrap.parentElement); addEventListener("resize", onSize);
     const GL = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣"];
     const hud = () => {
       const sp = G.spec; $(root, "#lv").textContent = level; $(root, "#sc").textContent = total + shownScore; $(root, "#mv").textContent = movesShown; $(root, "#hr").textContent = "❤️".repeat(lives) + "🖤".repeat(LIVES - lives);
@@ -167,6 +167,6 @@ export default {
         if (ev.some(e => e.t === "done")) ctx.finished(P.length === 1 ? -1 : S.winner);
       } else if (mode === "over") ovButtons(ov, S, ctx);
     });
-    return { push: (s, e) => q.push(s, e), get busy() { return false; }, destroy() { cancelFrame(raf); removeEventListener("keydown", kd); ro.disconnect(); document.removeEventListener("visibilitychange", vis); } };
+    return { push: (s, e) => q.push(s, e), get busy() { return false; }, destroy() { cancelFrame(raf); removeEventListener("keydown", kd); ro.disconnect(); removeEventListener("resize", onSize); document.removeEventListener("visibilitychange", vis); } };
   },
 };

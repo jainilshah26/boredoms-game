@@ -1,4 +1,4 @@
-import { $, $$, esc, stripHTML, setStrip, banner, queue } from "./common.js";
+import { isLand, $, $$, esc, stripHTML, setStrip, banner, queue } from "./common.js";
 import { sfx, burst, shake, floatText, reduced, buzz } from "../fx.js";
 import { arcadeState, arcadeAct, nextFrame, cancelFrame, DEBUG } from "./arcade.js";
 import { stripInfo, endRun, ovButtons, winBanner } from "./arcade_ui.js";
@@ -21,11 +21,11 @@ export default {
     const cv = $(root, "#cv"), g = cv.getContext("2d"), ov = $(root, "#ov"), wrap = $(root, ".arc-wrap");
     let cell = 16, dpr = 1;
     const size = () => {
-      const land = innerWidth > innerHeight && innerHeight < 520, w = Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), 420);
+      const land = isLand(), w = Math.min((wrap.parentElement.clientWidth || 360) - (land ? 300 : 0), land ? 760 : 420);
       cell = Math.max(land ? 10 : 11, Math.min(Math.floor(w / COLS), Math.floor(((land ? innerHeight - 110 : innerHeight - (innerHeight < 700 ? 440 : 400))) / ROWS)));
       dpr = Math.min(devicePixelRatio || 1, 3); cv.width = cell * COLS * dpr; cv.height = cell * ROWS * dpr; cv.style.width = cell * COLS + "px"; cv.style.height = cell * ROWS + "px"; g.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    size(); const ro = new ResizeObserver(() => { size(); draw(); }); ro.observe(wrap.parentElement);
+    size(); const onSize = () => { size(); draw(); }; const ro = new ResizeObserver(onSize); ro.observe(wrap.parentElement); addEventListener("resize", onSize);
 
     let game = newSnake(S.seed), mode = "ready", acc = 0, last = 0, raf = 0, pops = [], flash = 0, tongue = 0, best = best0;
     const hud = () => { $(root, "#sc").textContent = game.score; $(root, "#lv").textContent = level(game); };
@@ -84,6 +84,6 @@ export default {
         if (ev.some(e => e.t === "done")) ctx.finished(P.length === 1 ? -1 : S.winner);
       } else if (mode === "over") ovButtons(ov, S, ctx);
     });
-    return { push: (s, e) => q.push(s, e), get busy() { return false; }, destroy() { cancelFrame(raf); removeEventListener("keydown", key); ro.disconnect(); document.removeEventListener("visibilitychange", vis); } };
+    return { push: (s, e) => q.push(s, e), get busy() { return false; }, destroy() { cancelFrame(raf); removeEventListener("keydown", key); ro.disconnect(); removeEventListener("resize", onSize); document.removeEventListener("visibilitychange", vis); } };
   },
 };

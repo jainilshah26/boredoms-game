@@ -477,3 +477,9 @@ main.hastabs{padding-bottom:116px}
 .goalbar u{display:block;height:100%;width:0;border-radius:7px;text-decoration:none;background:linear-gradient(90deg,#F2B632,#FFE27A);transition:width .35s}
 .game.candy>.goalbar{align-self:stretch}
 @media (min-width:900px){main{padding-bottom:24px}main.hastabs{padding-bottom:116px}.game{padding-bottom:16px}}
+
+/* ---------- ludo ring board (5-10 players) ---------- */
+.lboard.ring .ltok{width:5.6%}
+.lboard.ring .ltok .avatar{--s:3.7cqw!important}
+.lboard.ring .ltok.glow::after{content:"";position:absolute;inset:-70%;border-radius:50%}
+.lboard.ring .ltok.glow{outline-width:.35cqw}

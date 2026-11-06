@@ -22,7 +22,7 @@ for (const g of LIST) ok(META[g.id] && GAME[g.id].mount && GAME[g.id].init, `${g
 console.log("  8 games, " + AVATARS.length + " avatars");
 
 section("Turn-based games: bot-vs-bot until someone wins");
-for (const [id, counts, runs, cap] of [["ludo", [2, 3, 4], 60, 5000], ["snl", [2, 6, 10], 60, 4000], ["tyc", [2, 4, 10], 25, 6000], ["clash", [2, 3, 6, 10], 60, 4000], ["ttt", [2], 40, 30]]) {
+for (const [id, counts, runs, cap] of [["ludo", [2, 3, 4, 5, 6, 8, 10], 40, 30000], ["snl", [2, 6, 10], 60, 4000], ["tyc", [2, 4, 10], 25, 6000], ["clash", [2, 3, 6, 10], 60, 4000], ["ttt", [2], 40, 30]]) {
   const g = GAME[id]; let games = 0, stuck = 0;
   for (const n of counts) for (let r = 0; r < runs; r++) {
     const s = g.init(mk(n)); let i = 0;

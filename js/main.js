@@ -7,7 +7,7 @@ import { esc } from "./games/common.js";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const app = $("#app");
 const S = { me: null, tab: "play", view: null, ctx: null, over: false, intro: true, social: { friends: [], incoming: [], outgoing: [], invites: [] } };
-const MODES = [["Duo", 2, "2 players"], ["Trio", 3, "3 players"], ["Squad", 4, "Up to 4"], ["Party", 10, "Up to 10"]];
+const MODES = [["Duo", 2, "2 players"], ["Trio", 3, "3 players"], ["Squad", 4, "Up to 4"], ["Party", 10, "Up to 10"], ["Crowd", 20, "Up to 20"]];
 const THEMES = ["felt", "velvet", "midnight"], THEME_NAMES = { felt: "Felt", velvet: "Velvet", midnight: "Midnight" };
 const setTheme = n => { document.documentElement.dataset.theme = n; store.set("bf_theme", n); };
 setTheme(THEMES.includes(store.get("bf_theme")) ? store.get("bf_theme") : "felt");
@@ -125,7 +125,7 @@ function lobby(keep) {
   const link = location.origin + location.pathname + "#join=" + r.id;
   const mode = (MODES.find(m => m[1] === r.max) || ["Room"])[0];
   const seatsHtml = r.players.map((p, i) => `<div class="seat" style="--i:${i}"><div class="seatav">${avatar(p.av, 62, p.c)}</div><b>${esc(p.n)}</b>${p.id === r.hostId ? ' <span class="crown">♛</span>' : ""}${isLive && p.id === PID ? "<small>you</small>" : ""}${isLive && p.id !== PID ? addBtn(p.n) : ""}</div>`).join("") +
-    Array.from({ length: Math.max(0, Math.min(r.max, 10) - n) }, () => `<div class="seat open">${isLive ? "Waiting…" : "Open seat"}</div>`).join("");
+    Array.from({ length: Math.max(0, r.max - n) }, () => `<div class="seat open">${isLive ? "Waiting…" : "Open seat"}</div>`).join("");
   frame(null, `<div class="top"><button class="back" id="lv" aria-label="Back to home">‹</button><h2>${isLive ? "Live room" : mode + " room"}</h2><span class="count">${isLive ? '<span class="live">●</span> ' : ""}${n}/${r.max}</span></div>
    ${isLive ? `<section class="ticket"><div><small>Room ID</small><div class="code">${r.id}</div></div><div><small>Password</small><div class="code">${r.pw}</div></div></section>
    <div class="row2" style="margin:16px 0 22px"><button class="btn" id="sh">Share invite</button><button class="btn g" id="cp">Copy</button></div>` : `<section class="ticket" style="grid-template-columns:1fr"><div><small>One phone</small><div class="code" style="font-size:22px">Pass it around</div></div></section><div style="height:18px"></div>`}
@@ -151,8 +151,10 @@ function lobby(keep) {
 function gameSheet(id, o = {}) {
   const g = META[id], r = Net.room, hum = r.players.length, red = g.red;
   let lo = Math.max(0, g.min - hum), hi = Math.max(lo, Math.min(3, g.max - hum)); if (g.solo || hum >= g.max) { lo = 0; hi = 0; }
-  const opts = []; for (let k = lo; k <= hi; k++) opts.push(k);
-  let bots = hum === 1 && !g.solo ? Math.max(lo, Math.min(2, hi)) : lo;
+  let opts = []; for (let k = lo; k <= hi; k++) opts.push(k);
+  /* games that need a bigger table list their own bot counts */
+  if (g.botOpts && !g.solo && hum < g.max) { opts = [...new Set([lo, ...g.botOpts.filter(k => k >= lo && hum + k <= g.max)])].sort((a, b) => a - b); hi = opts[opts.length - 1]; }
+  let bots = g.botOpts && !g.solo ? (opts[hum === 1 ? Math.min(1, opts.length - 1) : 0] ?? lo) : hum === 1 && !g.solo ? Math.max(lo, Math.min(2, hi)) : lo;
   const sum = () => hum > g.max ? `The first ${g.max} players play. Everyone else watches.` : g.solo ? (hum > 1 ? (g.raceText || "Race! Everyone gets the same puzzle. First to finish wins.") : "Just you. Take your time.") : bots ? `${hum === 1 ? "You" : hum + " players"} + ${bots} bot${bots > 1 ? "s" : ""} will play.` : `All ${hum} players join.`;
   const el = sheet(`<div class="gh ${red ? "red" : ""}"><span class="gi" aria-hidden="true">${ICON[id]}</span><div><h2>${g.name}</h2><p>${g.pl} · about ${g.time}</p></div></div>
    <h3>How to play</h3><ol class="how">${g.how.map(x => `<li>${x}</li>`).join("")}</ol>
@@ -170,7 +172,7 @@ Net.cb.start = m => {
     state: m.s, players, local: !isLive,
     mySeat: isLive ? players.findIndex(p => p.id === PID) : players.findIndex(p => !p.bot),
     mine: i => i >= 0 && i < players.length && (isLive ? players[i].id === PID : !players[i].bot),
-    act: a => isLive ? send.act(a) : send.act(a, S.ctx.state.turn >= 0 ? S.ctx.state.turn : S.ctx.mySeat),
+    act: (a, seat) => isLive ? send.act(a) : send.act(a, seat != null ? seat : S.ctx.state.turn >= 0 ? S.ctx.state.turn : S.ctx.mySeat),
     finished: w => finished(w), api,
   };
   S.ctx = ctx; S.over = false; closeSheet(); gameScreen(m.g, ctx);

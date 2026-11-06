@@ -483,3 +483,24 @@ main.hastabs{padding-bottom:116px}
 .lboard.ring .ltok .avatar{--s:3.7cqw!important}
 .lboard.ring .ltok.glow::after{content:"";position:absolute;inset:-70%;border-radius:50%}
 .lboard.ring .ltok.glow{outline-width:.35cqw}
+
+/* ---------- undercover ---------- */
+.modes .mode:last-child:nth-child(odd){grid-column:1/-1}
+.game.uc{display:flex;flex-direction:column;gap:10px;padding-bottom:30px}
+.uc-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;color:var(--soft);font-size:15px}.uc-head b{color:var(--gold);font-family:var(--serif);font-size:19px}
+.uc-word{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:16px;border:1px solid var(--gold2);background:linear-gradient(180deg,var(--panel2),var(--panel));text-align:center;box-shadow:0 0 0 3px var(--bg3)}
+.uc-word>small{color:var(--soft);font-size:13px}.uc-word>b{font-family:var(--serif);font-size:clamp(28px,8vw,40px);color:var(--goldhi);letter-spacing:.04em;text-transform:uppercase;line-height:1.15}
+.uc-all{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;width:100%;text-align:left;max-height:230px;overflow:auto}
+.uc-r{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border:1px solid rgba(232,199,102,.2);background:rgba(0,0,0,.25)}.uc-r.win{border-color:var(--gold);background:rgba(232,199,102,.14)}
+.uc-r b{display:block;font-size:14px;line-height:1.1}.uc-r small{font-size:12px;color:var(--soft)}
+.uc-log{max-height:150px;overflow:auto;padding:8px 10px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid rgba(232,199,102,.18);font-size:15px;scroll-behavior:smooth}
+.ul-round{font-family:var(--serif);color:var(--gold);font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:8px 0 4px;border-bottom:1px solid rgba(232,199,102,.2)}.ul-round:first-child{margin-top:0}
+.ul-line{display:flex;gap:8px;padding:2px 0}.ul-line b{flex:none;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--goldhi)}.ul-line span{color:var(--ink);word-break:break-word}.ul-line.def span{font-style:italic}
+.ul-note{margin:6px 0;padding:6px 8px;border-radius:9px;background:rgba(255,255,255,.06);color:var(--soft)}.ul-note.out{background:rgba(196,22,42,.2);color:var(--ink)}
+.uc-panel{padding:14px;border-radius:16px;border:1px solid var(--gold2);background:linear-gradient(180deg,rgba(255,255,255,.04),transparent 40%),var(--panel);display:grid;gap:10px;text-align:center}.uc-panel h3{margin:0}.uc-panel .sub{margin:0}
+.uc-say{display:flex;gap:8px}.uc-say input{flex:1;min-width:0}.uc-say .btn{width:auto;flex:none;padding:12px 18px}
+.uc-votes{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.ucv{display:flex;align-items:center;gap:8px;min-height:54px;padding:8px 10px;border-radius:14px;border:1px solid var(--gold2);background:rgba(0,0,0,.3);color:var(--ink);cursor:pointer;text-align:left;font-family:var(--sans);font-size:15px}.ucv b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ucv.on{background:linear-gradient(180deg,#E0344A,#9E1624);border-color:var(--gold);box-shadow:0 0 14px rgba(224,52,74,.55)}.ucv .ucn{font-size:26px}
+.uc-cover h3{font-size:22px}.uc-cover .btn{margin-top:6px}
+@media (max-height:520px) and (orientation:landscape),(min-width:900px){.game.uc{display:flex}.uc-log{max-height:260px}}

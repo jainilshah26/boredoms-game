@@ -262,6 +262,7 @@ function removePlayer(id, why) {
   const r = Net.room; const p = r.players.find(x => x.id === id); if (!p) return;
   r.players = r.players.filter(x => x.id !== id);
   if (Net.runner && !Net.runner.g.anytime && Net.runner.players.some(x => x.id === id)) { Net.bus && Net.bus.send({ t: "toLobby", from: PID, why: `${p.n} ${why || "left"}. Round ended.` }); }
+  if (Net.runner && Net.runner.g.anytime && Net.runner.g.onLeave) { const i = Net.runner.players.findIndex(x => x.id === id); if (i >= 0) Net.runner.leave(i); }
   sendRoster(); L().roster();
 }
 function handle(m) {
@@ -333,10 +334,10 @@ export function startGame(gameId, bots) {
   const r = Net.room, g = GAME[gameId];
   const humans = r.players.slice(0, g.max).map(p => ({ id: p.id, n: p.n, av: p.av, c: p.c }));
   const want = Math.min(g.max, Math.max(g.min, humans.length + (bots || 0)));
-  const BOTS = ["Pixel", "Turbo", "Nova", "Zippy", "Biscuit", "Comet", "Mango", "Pogo", "Waffles"];
+  const BOTS = ["Pixel", "Turbo", "Nova", "Zippy", "Biscuit", "Comet", "Mango", "Pogo", "Waffles", "Ziggy", "Pepper", "Cosmo", "Dash", "Echo", "Fable", "Gizmo", "Hazel", "Indy", "Jelly", "Kiwi", "Luna", "Maple", "Nacho", "Olive", "Peanut", "Quill", "Ruby", "Sunny", "Tango", "Uno"].sort(() => Math.random() - .5);
   const players = [...humans]; let k = 0;
   const freeAv = () => { const taken = new Set(players.map(p => p.av)), pool = AVATARS.map(a => a.id).filter(id => !taken.has(id)); return pool.length ? pool[Math.random() * pool.length | 0] : "robot"; };
-  while (players.length < want) { players.push({ id: null, n: BOTS[(k + (Math.random() * 9 | 0)) % BOTS.length], av: freeAv(), c: COLORS[players.length % COLORS.length], bot: true }); k++; }
+  while (players.length < want) { players.push({ id: null, n: BOTS[k % BOTS.length], av: freeAv(), c: COLORS[players.length % COLORS.length], bot: true }); k++; }
   const used = new Set(); players.forEach(p => { if (p.bot) { while (used.has(p.n) || humans.some(h => h.n === p.n)) p.n += "!"; used.add(p.n); } });
   Net.runner = new Runner(gameId, players, r.live);
   Net.runner.begin();
@@ -364,11 +365,19 @@ class Runner {
     const ms = ev.reduce((t, e) => t + (e.ms || 0), 0); this.nextBot(500 + ms);
   }
   resync() { if (this.live && !this.dead) this.out({ t: "state", from: PID, seq: this.seq, s: this.s, ev: [], re: true }); }
+  /* games where several people act at once (voting) list who still has to act in g.pending(); bots among them act one by one */
   nextBot(delay) {
     clearTimeout(this.timer); if (this.dead) return;
-    const s = this.s; if (s.turn < 0 || s.over) return;
-    const tp = this.players[s.turn]; if (!tp || !tp.bot) return;
-    this.timer = setTimeout(() => { if (this.dead) return; const a = this.g.bot(this.s); if (a) this.act(this.s.turn, a); else this.nextBot(600); }, delay);
+    const s = this.s; if (s.over) return; let seat = -1;
+    if (this.g.pending) { const q = this.g.pending(s).filter(i => this.players[i] && this.players[i].bot); seat = q.length ? q[0] : -1; }
+    else if (s.turn >= 0 && this.players[s.turn] && this.players[s.turn].bot) seat = s.turn;
+    if (seat < 0) return;
+    this.timer = setTimeout(() => { if (this.dead) return; const a = this.g.bot(this.s, seat); if (a) this.act(seat, a); else this.nextBot(600); }, delay);
+  }
+  /* a human left a game that can go on without them */
+  leave(i) {
+    if (this.dead || !this.g.onLeave) return; const ev = this.g.onLeave(this.s, i); if (!ev) return;
+    this.seq++; this.out({ t: "state", from: PID, seq: this.seq, s: this.s, ev }); this.nextBot(500);
   }
   stop() { this.dead = true; clearTimeout(this.timer); }
 }

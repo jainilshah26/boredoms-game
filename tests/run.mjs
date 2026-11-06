@@ -7,6 +7,8 @@ import { evalHand, cmpHands } from "../js/games/teenpatti_core.js";
 import { newMatch, next, play, BALLS, WICKETS, delivery } from "../js/games/cricket_core.js";
 import { makeLevel, newPlay, begin, step, solved, perfect, complete, adjacent, spec, reset, filled } from "../js/games/flow_core.js";
 import { newGame, swap, hint, hasMatch, N as CN, levelSpec, progress, validMoves } from "../js/games/candy_core.js";
+import { init as ucInit, act as ucAct, bot as ucBot, pending as ucPending, teamSizes, aliveSeats, onLeave as ucLeave } from "../js/games/undercover_core.js";
+import { CATS } from "../js/games/undercover_data.js";
 import { arcadeState, arcadeAct } from "../js/games/arcade.js";
 
 let failed = 0;
@@ -15,7 +17,7 @@ const section = t => console.log("\n" + t);
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: null, n: "P" + i, av: "cat", c: "#fff", bot: true }));
 
 section("Catalogue");
-ok(LIST.length === 12, "12 games listed");
+ok(LIST.length === 13, "13 games listed");
 ok(AVATARS.length >= 20 && new Set(AVATARS.map(a => a.id)).size === AVATARS.length, "avatars have unique ids");
 ok(AVATARS.every(a => a.svg && a.bg), "every avatar has artwork and a colour");
 for (const g of LIST) ok(META[g.id] && GAME[g.id].mount && GAME[g.id].init, `${g.id} is wired up`);
@@ -157,6 +159,28 @@ section("Candy Match");
   const h2 = newGame(2); ok(swap(h2, 0, 9).ok === false, "only neighbours can be swapped");
   const q = newGame(11); let undone = true; for (let i = 0; i < CN * CN - 1; i++) { const j = i + 1; if (j % CN === 0) continue; if (!validMoves(q).some(m => m[0] === i && m[1] === j)) { const before = q.moves, r = swap(q, i, j); if (r.ok || q.moves !== before) undone = false; } }
   ok(undone, "a swap that matches nothing is undone and costs no move");
+}
+
+section("Undercover");
+{
+  let bad = 0, games = 0, civ = 0;
+  ok(CATS.length >= 15 && CATS.every(c => c.sets.length >= 3 && c.sets.every(s => s.length === 3 && new Set(s).size === 3) && c.clues.length >= 10), "word sets are three distinct words and every category has bot clues");
+  for (const n of [5, 6, 7, 8, 10, 12, 15, 20]) for (let r = 0; r < 40; r++) {
+    const s = ucInit(mk(n)); games++; let g = 0; const [c, u, i] = teamSizes(n);
+    if (c + u + i !== n || c <= u + i || u < 1 || i < 1) bad++;
+    if (new Set(s.set).size !== 3 || s.word.some((w, k) => w !== s.set[s.role[k]])) bad++;
+    while (!s.over && g++ < 20000) { const q = ucPending(s); if (!q.length) { bad++; break; } const a = ucBot(s, q[0]), ev = a && ucAct(s, { ...a, p: q[0] }); if (!ev) { bad++; break; } }
+    if (!s.over) { bad++; continue; }
+    const cnt = [0, 0, 0]; aliveSeats(s).forEach(k => cnt[s.role[k]]++);
+    if (s.winners.includes(0) ? (cnt[1] + cnt[2] !== 0 || s.winners.length !== 1) : (cnt[0] > cnt[1] + cnt[2] || s.winners.some(t => !cnt[t]))) bad++;
+    if (s.winners.includes(0)) civ++;
+  }
+  ok(bad === 0, games + " bot games from 5 to 20 players all finish with a valid winner"); ok(civ > 0 && civ < games, "both sides win sometimes");
+  const hp = mk(6); hp[0].bot = false; const s = ucInit(hp);
+  ok(ucPending(s).join() === "0" && s.phase === "reveal", "a human has to confirm their word first"); ucAct(s, { a: "ready", p: 0 });
+  ok(s.phase === "clue" && ucAct(s, { a: "clue", p: s.turn, text: s.word[s.turn].toUpperCase() }) === null, "you can't say your own word as a clue");
+  ok(ucAct(s, { a: "clue", p: (s.turn + 1) % 6, text: "x" }) === null && ucAct(s, { a: "clue", p: s.turn, text: "   " }) === null, "only the player whose turn it is can clue, and not with an empty clue");
+  const left = ucLeave(s, 0); ok(left && s.players[0].bot === true, "a player who leaves is replaced by a bot");
 }
 
 section("Arcade scoring and rooms");
